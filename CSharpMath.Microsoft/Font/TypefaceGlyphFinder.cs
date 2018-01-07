@@ -4,14 +4,14 @@ using System.Globalization;
 using System.Collections.Generic;
 using System.Linq;
 using System;
-using CoreText;
+using TTypeface = Windows.UI.Xaml.Documents.Run;
 
 namespace CSharpMath.Microsoft {
-  public class CtFontGlyphFinder : IGlyphFinder<TGlyph> {
-    private readonly CTFont _ctFont;
+  public class TypefaceGlyphFinder : IGlyphFinder<TGlyph> {
+    private readonly TTypeface _typeface;
 
-    public CtFontGlyphFinder(CTFont ctFontPointSizeIrrelevant) {
-      _ctFont = ctFontPointSizeIrrelevant;
+    public TypefaceGlyphFinder(TTypeface typefacePointSizeIrrelevant) {
+      _typeface = typefacePointSizeIrrelevant;
     }
     private IEnumerable<TGlyph> ToUintEnumerable(byte[] bytes) {
       for (int i = 0; i < bytes.Length; i += 2) {
@@ -66,7 +66,7 @@ namespace CSharpMath.Microsoft {
       int length = end - start;
       TGlyph[] glyphs = new TGlyph[length];
       char[] chars = str.Substring(start, length).ToCharArray();
-      _ctFont.GetGlyphsForCharacters(chars, glyphs, length);
+      _typeface.GetGlyphsForCharacters(chars, glyphs, length);
       return glyphs[0];
     }
 

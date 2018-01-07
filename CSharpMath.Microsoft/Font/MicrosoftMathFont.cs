@@ -4,6 +4,7 @@ using CoreGraphics;
 using CoreText;
 using CSharpMath.Display;
 using System;
+using TFont = Windows.UI.Xaml.Media.
 
 namespace CSharpMath.Microsoft
 {

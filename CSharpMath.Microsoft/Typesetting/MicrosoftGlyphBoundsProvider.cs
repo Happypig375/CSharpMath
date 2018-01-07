@@ -15,8 +15,8 @@ using CSharpMath.Microsoft.Drawing;
 
 namespace CSharpMath.Microsoft {
   public class MicrosoftGlyphBoundsProvider: IGlyphBoundsProvider<TFont, TGlyph> {
-    private readonly CtFontGlyphFinder _glyphFinder;
-    public MicrosoftGlyphBoundsProvider(CtFontGlyphFinder glyphFinder) {
+    private readonly TypefaceGlyphFinder _glyphFinder;
+    public MicrosoftGlyphBoundsProvider(TypefaceGlyphFinder glyphFinder) {
       _glyphFinder = glyphFinder;
     }
 

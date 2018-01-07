@@ -10,7 +10,7 @@ using CoreText;
 namespace CSharpMath.Microsoft.Drawing {
   public class MicrosoftAttributeDictionaryFactory {
     public static UIStringAttributes FromAttributedGlyphRun(AttributedGlyphRun<TFont, TGlyph> glyphRun) {
-      return new UIStringAttributes {
+      return new Windows. UIStringAttributes {
         ForegroundColor = glyphRun.TextColor.ToNative(),
         Font = UIFont.SystemFontOfSize(glyphRun.Font.PointSize)
       };

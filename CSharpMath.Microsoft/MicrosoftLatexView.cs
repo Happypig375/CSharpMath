@@ -9,7 +9,7 @@ using CSharpMath.Microsoft.Drawing;
 using System;
 using Windows.Foundation;
 #if WINDOWS_UWP
-using NView = Windows.UI.Xaml.Controls.ContentControl;
+using NView = Windows.UI.Xaml.Controls.UserControl;
 using NColor = Windows.UI.Color;
 using NColors = Windows.UI.Colors;
 using NContentInsets = Windows.Foundation.Rect;
@@ -60,6 +60,7 @@ namespace CSharpMath.Microsoft {
       Foreground = new NBrush(NColors.Black);
       FontSize = fontSize;
       _typesettingContext = typesettingContext;
+      LayoutUpdated += Draw;
     }
 
     protected override NSize MeasureOverride(NSize availableSize) {
@@ -99,7 +100,7 @@ namespace CSharpMath.Microsoft {
         double textY = ((availableHeight - contentHeight) / 2) + ContentInsets.Bottom + _displayList.Descent;
         _displayList.Position = new System.Drawing.PointF((float)textX, (float)textY);
       }
-      return base.ArrangeOverride(finalSize);
+      return finalSize;
     }
 
     private void _CreateDisplayList()
@@ -109,11 +110,22 @@ namespace CSharpMath.Microsoft {
       _displayList = _typesettingContext.CreateLine(_mathList, MicrosoftFont, LineStyle.Display);
     }
 
-    public override void Draw(CGRect rect) {
-      base.Draw(rect);
+    public void Draw(object sender, object e) {
+      PrivateFontCollection _fonts = new PrivateFontCollection();
+
+      byte[] fontData = Resources.CustomFontResourceName;
+
+      IntPtr fontPtr = Marshal.AllocCoTaskMem(fontData.Length);
+
+      System.Runtime.InteropServices.Marshal.Copy(fontData, 0, fontPtr, fontData.Length);
+
+      _fonts.AddMemoryFont(fontPtr, fontData.Length);
+
+      System.Runtime.InteropServices.Marshal.FreeCoTaskMem(fontPtr);
+
+      Font customFont = new Font(_fonts.Families[0], 6.0F);
       var cgContext = UIGraphics.GetCurrentContext();
       if (_mathList != null) {
-
         var MicrosoftContext = new MicrosoftGraphicsContext(_typesettingContext.GlyphFinder)
         {
           CgContext = cgContext

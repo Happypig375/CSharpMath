@@ -9,7 +9,7 @@ using CSharpMath.Ios.Resources;
 namespace CSharpMath.Microsoft {
   public static class MicrosoftTypesetters {
     private static TypesettingContext<MicrosoftMathFont, TGlyph> CreateTypesettingContext(CTFont someCtFontSizeIrrelevant) {
-      var glyphFinder = new CtFontGlyphFinder(someCtFontSizeIrrelevant);
+      var glyphFinder = new TypefaceGlyphFinder(someCtFontSizeIrrelevant);
       return new TypesettingContext<MicrosoftMathFont, TGlyph>(
         new MicrosoftFontMeasurer(),
         (font, size) => new MicrosoftMathFont(font, size),

@@ -16,7 +16,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)Extensions\MicrosoftColorExtensions.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Font\MicrosoftFontManager.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Font\MicrosoftMathFont.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Font\CtFontGlyphFinder.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Font\TypefaceGlyphFinder.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Typesetting\MicrosoftFontMeasurer.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Typesetting\MicrosoftGlyphBoundsProvider.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Typesetting\MicrosoftGlyphNameProvider.cs" />
