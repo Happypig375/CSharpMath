@@ -1,0 +1,25 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <MSBuildAllProjects>$(MSBuildAllProjects);$(MSBuildThisFileFullPath)</MSBuildAllProjects>
+    <HasSharedItems>true</HasSharedItems>
+    <SharedGUID>0017ae62-39e4-4163-a1f5-55d1a520ece3</SharedGUID>
+  </PropertyGroup>
+  <PropertyGroup Label="Configuration">
+    <Import_RootNamespace>CSharpMath.Microsoft</Import_RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="$(MSBuildThisFileDirectory)MicrosoftLatexView.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Drawing\MicrosoftGraphicsContext.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Drawing\AttributedStrings\MicrosoftAttributeDictionaryFactory.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Drawing\AttributedStrings\MicrosoftAttributedStringFactory.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Extensions\MicrosoftColorExtensions.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Font\MicrosoftFontManager.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Font\MicrosoftMathFont.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Font\CtFontGlyphFinder.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Typesetting\MicrosoftFontMeasurer.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Typesetting\MicrosoftGlyphBoundsProvider.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Typesetting\MicrosoftGlyphNameProvider.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Typesetting\MicrosoftTypesetters.cs" />
+  </ItemGroup>
+</Project>
