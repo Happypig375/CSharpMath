@@ -61,8 +61,11 @@ namespace CSharpMath.Uno {
 #endif
       var previous = _mirroredProperty;
       _mirroredProperty = (property == ContentProperty ? nameof(Content) : nameof(LaTeX), value);
-      try { SetValue(property, value); }
-      finally { _mirroredProperty = previous; }
+      try {
+        SetValue(property, value);
+      } finally {
+        _mirroredProperty = previous;
+      }
     }
     // Internal test seam; production views do not carry diagnostic state.
     internal virtual void OnDiagnostic(string _) { }
