@@ -168,9 +168,12 @@ namespace CSharpMath.Display {
       MathAtom? prevAtom = null;
       foreach (var atom in preprocessedAtoms) {
         var magnification = LaTeXSettings.RelativeSizeMagnification(atom.RelativeSize);
-        _font = magnification == 1 ? _baseFont :
-          _context.MathFontCloner.Invoke(_baseFont, _baseFont.PointSize * magnification);
-        _styleFont = _context.MathFontCloner.Invoke(_font, _mathTable.GetStyleSize(_style, _font));
+        var pointSize = _baseFont.PointSize * magnification;
+        if (pointSize != _font.PointSize) {
+          AddDisplayLine(false);
+          _font = magnification == 1 ? _baseFont : _context.MathFontCloner.Invoke(_baseFont, pointSize);
+          _styleFont = _context.MathFontCloner.Invoke(_font, _mathTable.GetStyleSize(_style, _font));
+        }
         switch (atom) {
           case Number _:
           case Variable _:

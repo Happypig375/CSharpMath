@@ -26,6 +26,18 @@ namespace CSharpMath.Core.DisplayTests {
       Assert.InRange(sized.Ascent / plain.Ascent, ratio - .01f, ratio + .01f);
       Assert.InRange(sized.Descent / plain.Descent, ratio - .01f, ratio + .01f);
     }
+    [Theory]
+    [InlineData("x", "y")]
+    [InlineData("1", "2")]
+    public void SizeChangeKeepsAdjacentGlyphsAtTheirOwnSizes(string left, string right) {
+      var first = Typesetter.CreateLine(LaTeXParserTest.ParseLaTeX(left), Font, Context, LineStyle.Text);
+      var second = Typesetter.CreateLine(LaTeXParserTest.ParseLaTeX(@"\Huge " + right), Font, Context, LineStyle.Text);
+      var line = Typesetter.CreateLine(LaTeXParserTest.ParseLaTeX(left + @"\Huge " + right), Font, Context, LineStyle.Text);
+      Assert.Equal(first.Width + second.Width, line.Width, 3);
+      Assert.Equal(2, line.Displays.Count);
+      Assert.Equal(first.Width, line.Displays[1].Position.X, 3);
+    }
+
     [Fact]
     public void LargeScriptScalesExactlyOnce() {
       var normal = Typesetter.CreateLine(LaTeXParserTest.ParseLaTeX("x^2"), Font, Context, LineStyle.Text);

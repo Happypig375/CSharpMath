@@ -68,7 +68,8 @@ namespace CSharpMath.Atom {
               newList[prevDisplayedIndex] = b.ToUnaryOperator();
               break;
           }
-          if ((prevNode, newNode) is (Number { Superscript.Count: 0, Subscript.Count: 0 } n, Number)) {
+          if ((prevNode, newNode) is (Number { Superscript.Count: 0, Subscript.Count: 0 } n, Number) &&
+              n.RelativeSize == newNode.RelativeSize) {
             n.Fuse(newNode);
             continue; // do not add the new node; we fused it instead.
           }
