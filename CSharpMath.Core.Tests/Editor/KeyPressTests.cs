@@ -142,6 +142,32 @@ namespace CSharpMath.Core.EditorTests {
         () => keyboard.KeyPress(inputs));
     }
 
+    [Theory]
+    [InlineData(@"\frac{}{b}", 0, K.Right, K.Down, MathListSubIndexType.Denominator)]
+    [InlineData(@"\frac{a}{}", 1, K.Left, K.Up, MathListSubIndexType.Numerator)]
+    public void LeavesEmptyFractionField(string latex, int start, K enter, K move, MathListSubIndexType target) {
+      using var keyboard = new MathKeyboard<TestFont, TGlyph>(context, new TestFont());
+      var (list, error) = Atom.LaTeXParser.MathListFromLaTeX(latex);
+      Assert.Null(error);
+      keyboard.MathList.Append(list);
+      keyboard.InsertionIndex = new(start);
+      keyboard.KeyPress(enter, move);
+      Assert.Equal(new MathListIndex(0).LevelUpWithSubIndex(target, 0), keyboard.InsertionIndex);
+    }
+
+    [Fact]
+    public void MovesBetweenDegreeAndRadicand() {
+      using var keyboard = new MathKeyboard<TestFont, TGlyph>(context, new TestFont());
+      var (list, error) = Atom.LaTeXParser.MathListFromLaTeX(@"\sqrt[3]{x}");
+      Assert.Null(error);
+      keyboard.MathList.Append(list);
+      keyboard.InsertionIndex = new MathListIndex(0).LevelUpWithSubIndex(MathListSubIndexType.Degree, 0);
+      keyboard.KeyPress(K.Down);
+      Assert.Equal(MathListSubIndexType.Radicand, keyboard.InsertionIndex.FinalSubIndexType);
+      keyboard.KeyPress(K.Up);
+      Assert.Equal(MathListSubIndexType.Degree, keyboard.InsertionIndex.FinalSubIndexType);
+    }
+
     [Fact]
     public void NoDuplicateValues() {
       var names = Enum.GetNames(typeof(K));

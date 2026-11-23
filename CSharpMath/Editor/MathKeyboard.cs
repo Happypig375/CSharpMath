@@ -385,6 +385,11 @@ namespace CSharpMath.Editor {
           break;
         }
       }
+      void MoveToSibling(MathListIndex from, MathListSubIndexType type) {
+        var target = from.LevelDown()!.LevelUpWithSubIndex(type, 0);
+        _insertionIndex = ClosestPointToIndex(_insertionIndex) is PointF sourcePoint
+          ? VerticalIndexAtPoint(target, sourcePoint) ?? target : target;
+      }
       void MoveCursorUp() {
         if (Display is null) RecreateDisplayFromMathList();
         if (MathList.AtomAt(_insertionIndex) is Atoms.Placeholder { Superscript: { Count: var superCount } } && superCount > 0) {
@@ -400,19 +405,16 @@ namespace CSharpMath.Editor {
         for (MathListIndex? verticalIndex = _insertionIndex; verticalIndex != null; verticalIndex = verticalIndex.LevelDown()) {
           switch (verticalIndex.FinalSubIndexType) {
             case MathListSubIndexType.Denominator:
-              var numerator =
-                verticalIndex.LevelDown()?.LevelUpWithSubIndex(MathListSubIndexType.Numerator, 0)
-                ?? throw new InvalidCodePathException("Null levelDown despite non-None " + nameof(verticalIndex.FinalSubIndexType));
-              var sourcePoint =
-                ClosestPointToIndex(_insertionIndex)
-                ?? throw new InvalidCodePathException("Null closest point despite valid " + nameof(MathListIndex));
-              _insertionIndex = VerticalIndexAtPoint(numerator, sourcePoint) ?? numerator;
+              MoveToSibling(verticalIndex, MathListSubIndexType.Numerator);
+              return;
+            case MathListSubIndexType.Radicand when MathList.AtomAt(verticalIndex.LevelDown()) is Atoms.Radical { Degree.Count: > 0 }:
+              MoveToSibling(verticalIndex, MathListSubIndexType.Degree);
               return;
             case MathListSubIndexType.Subscript:
               var levelDown =
                 verticalIndex.LevelDown()
                 ?? throw new InvalidCodePathException("Null levelDown despite non-None " + nameof(verticalIndex.FinalSubIndexType));
-              sourcePoint =
+              var sourcePoint =
                 ClosestPointToIndex(_insertionIndex)
                 ?? throw new InvalidCodePathException("Null closest point despite valid " + nameof(MathListIndex));
               if (MathList.AtomAt(levelDown) is { Superscript: { Count: 0 } } atom) {
@@ -469,19 +471,16 @@ namespace CSharpMath.Editor {
         for (MathListIndex? verticalIndex = _insertionIndex; verticalIndex != null; verticalIndex = verticalIndex.LevelDown()) {
           switch (verticalIndex.FinalSubIndexType) {
             case MathListSubIndexType.Numerator:
-              var denominator =
-                verticalIndex.LevelDown()?.LevelUpWithSubIndex(MathListSubIndexType.Denominator, 0)
-                ?? throw new InvalidCodePathException("Null levelDown despite non-None " + nameof(verticalIndex.FinalSubIndexType));
-              var sourcePoint =
-                ClosestPointToIndex(_insertionIndex)
-                ?? throw new InvalidCodePathException("Null closest point despite valid " + nameof(MathListIndex));
-              _insertionIndex = VerticalIndexAtPoint(denominator, sourcePoint) ?? denominator;
+              MoveToSibling(verticalIndex, MathListSubIndexType.Denominator);
+              return;
+            case MathListSubIndexType.Degree:
+              MoveToSibling(verticalIndex, MathListSubIndexType.Radicand);
               return;
             case MathListSubIndexType.Superscript:
               var levelDown =
                 verticalIndex.LevelDown()
                 ?? throw new InvalidCodePathException("Null levelDown despite non-None " + nameof(verticalIndex.FinalSubIndexType));
-              sourcePoint =
+              var sourcePoint =
                 ClosestPointToIndex(_insertionIndex)
                 ?? throw new InvalidCodePathException("Null closest point despite valid " + nameof(MathListIndex));
               if (MathList.AtomAt(levelDown) is { Subscript: { Count: 0 } } atom) {
