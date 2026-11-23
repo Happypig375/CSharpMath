@@ -10,6 +10,15 @@ using TGlyph = System.Text.Rune;
 
 namespace CSharpMath.Core.DisplayTests {
   public class TypesetterTests {
+    [Fact]
+    public void InlineTextMathKeepsUnaryMinusAfterSerialization() {
+      const string source = @"\text{A$-x$}";
+      var serialized = LaTeXParser.MathListToLaTeX(AtomTests.LaTeXParserTest.ParseLaTeX(source)).ToString();
+      var expected = ParseLaTeXToDisplay(@"\text{A}").Width + ParseLaTeXToDisplay("-x").Width;
+      Approximately.Equal(expected, ParseLaTeXToDisplay(source).Width);
+      Approximately.Equal(expected, ParseLaTeXToDisplay(serialized).Width);
+    }
+
     internal static ListDisplay<TFont, TGlyph> ParseLaTeXToDisplay(string latex) =>
       Typesetter.CreateLine(AtomTests.LaTeXParserTest.ParseLaTeX(latex), _font, _context, LineStyle.Display);
 

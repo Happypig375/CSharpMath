@@ -1157,14 +1157,21 @@ namespace CSharpMath.Core.AtomTests {
     }
 
     [Fact]
+    public void InlineTextMathEndsUnbracedArgument() {
+      var list = ParseLaTeX(@"\text$x$y");
+      Assert.Equal("y", list.Last!.Nucleus);
+      Assert.Equal(FontStyle.Default, list.Last.FontStyle);
+    }
+
+    [Fact]
     public void TestInlineMathInsideText() {
       var list = ParseLaTeX(@"\text{before $x+1$ after}");
       Assert.Equal(FontStyle.Roman, list[0].FontStyle);
-      Assert.Equal(FontStyle.Default, list[7].FontStyle);
-      Assert.Equal(FontStyle.Default, list[8].FontStyle);
-      Assert.Equal(FontStyle.Default, list[9].FontStyle);
-      Assert.Equal(FontStyle.Roman, list[10].FontStyle);
-      Assert.Equal(@"\mathrm{before\  }x+1\mathrm{\  after}", LaTeXParser.MathListToLaTeX(list).ToString());
+      var span = Assert.IsType<Inner>(list[7]);
+      Assert.Equal(3, span.InnerList.Count);
+      Assert.All(span.InnerList, atom => Assert.Equal(FontStyle.Default, atom.FontStyle));
+      Assert.Equal(FontStyle.Roman, list[8].FontStyle);
+      Assert.Equal(@"\mathrm{before\  }\text{$x+1$}\mathrm{\  after}", LaTeXParser.MathListToLaTeX(list).ToString());
     }
 
     [Fact]

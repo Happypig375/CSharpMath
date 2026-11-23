@@ -5,6 +5,9 @@ namespace CSharpMath.Atom.Atoms {
   public sealed class Inner : MathAtom, IMathListContainer {
     public Inner(Boundary left, MathList innerList, Boundary right) =>
       (LeftBoundary, InnerList, RightBoundary) = (left, innerList, right);
+    internal bool IsInlineTextMath { get; private set; }
+    internal static Inner InlineTextMath(MathList content) =>
+      new Inner(Boundary.Empty, content, Boundary.Empty) { IsInlineTextMath = true };
     public MathList InnerList { get; }
     public Boundary LeftBoundary { get; }
     public Boundary RightBoundary { get; }
@@ -13,9 +16,10 @@ namespace CSharpMath.Atom.Atoms {
     public override bool ScriptsAllowed => true;
     public new Inner Clone(bool finalize) => (Inner)base.Clone(finalize);
     protected override MathAtom CloneInside(bool finalize) =>
-      new Inner(LeftBoundary, InnerList.Clone(finalize), RightBoundary);
+      new Inner(LeftBoundary, InnerList.Clone(finalize), RightBoundary) { IsInlineTextMath = IsInlineTextMath };
     public bool EqualsInner(Inner otherInner) =>
       EqualsAtom(otherInner)
+      && IsInlineTextMath == otherInner.IsInlineTextMath
       && InnerList.NullCheckingStructuralEquality(otherInner.InnerList)
       && LeftBoundary.NullCheckingStructuralEquality(otherInner.LeftBoundary)
       && RightBoundary.NullCheckingStructuralEquality(otherInner.RightBoundary);

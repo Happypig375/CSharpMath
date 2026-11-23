@@ -75,9 +75,11 @@ namespace CSharpMath.Atom {
             TextMode = oldTextMode;
             CurrentFontStyle = oldFontStyle;
           }
-          if (inlineMath.Error is string inlineError) return inlineError;
-          r.Append(inlineMath.Match(value => value, _ => throw new InvalidCodePathException("Inline math unexpectedly failed")));
-          prevAtom = r.Atoms.LastOrDefault();
+          var (content, inlineError) = inlineMath;
+          if (inlineError != null) return inlineError;
+          prevAtom = Inner.InlineTextMath(content);
+          r.Add(prevAtom);
+          if (oneCharOnly) return r;
           continue;
         }
         if (stopChar == '$' && Chars[NextChar] == '}')
@@ -560,6 +562,11 @@ namespace CSharpMath.Atom {
             builder.Append('{');
             MathListToLaTeX(radical.Radicand, builder, currentFontStyle);
             builder.Append('}');
+            break;
+          case Inner { IsInlineTextMath: true } inlineMath:
+            builder.Append(@"\text{$");
+            MathListToLaTeX(inlineMath.InnerList, builder, FontStyle.Default);
+            builder.Append("$}");
             break;
           case Inner { LeftBoundary: { Nucleus: null }, InnerList: var list, RightBoundary: { Nucleus: null } }:
             MathListToLaTeX(list, builder, currentFontStyle);

@@ -40,6 +40,7 @@ namespace CSharpMath.Display {
           Atoms.Close _ => 5,
           Atoms.Punctuation _ => 6,
           Atoms.Fraction _ => 7,
+          Atoms.Inner { IsInlineTextMath: true } => 0,
           Atoms.Inner _ => 7,
           Atoms.Table _ => 7, // Tables are considered as Inner
           Atoms.Radical _ when row => 8,
