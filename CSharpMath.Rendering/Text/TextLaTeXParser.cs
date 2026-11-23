@@ -112,12 +112,15 @@ BreakText(@"Here are some text $1 + 12 \frac23 \sqrt4$ $$Display$$ text")
             return BuildBreakList(latexInput, argAtoms, ++i, true, '\0')
               .Bind(index => { i = index; return argAtoms.Build(); });
           }
-          var sharedCommandEnd = endAt;
-          var sharedCommandName = textSection.ToString();
-          if (backslashEscape && startAt > 0 && latexSource[startAt - 1] == '\\') {
-            var sharedCommand = LaTeXTokenizer.ReadAt(latexSource, startAt - 1);
-            sharedCommandName = latexSource.Substring(startAt, sharedCommand.Length - 1);
-            sharedCommandEnd = sharedCommand.End;
+          if (backslashEscape && mode == LaTeXMode.Text && startAt > 0 && latexSource[startAt - 1] == '\\') {
+            var command = LaTeXTokenizer.ReadAt(latexSource, startAt - 1);
+            if (command.Kind == LaTeXTokenKind.ControlWord && command.End != endAt) {
+              while (breakList[i].breakAt < command.End)
+                breakList.RemoveAt(i);
+              if (breakList[i].breakAt > command.End)
+                breakList.Insert(i, new BreakAtInfo(command.End, wordKind));
+              ObtainSection(latex, i, out startAt, out endAt, out textSection, out wordKind);
+            }
           }
           SpanResult<char> ReadArgumentString(ReadOnlySpan<char> latexInput, ref ReadOnlySpan<char> section) {
             afterCommand = false;
@@ -270,7 +273,7 @@ BreakText(@"Here are some text $1 + 12 \frac23 \sqrt4$ $$Display$$ text")
               case (true, LaTeXMode.Text):
                 //Escaped text section and not in inline/display math mode
                 afterCommand = true;
-                switch (sharedCommandName) {
+                switch (textSection.ToString()) {
                   case var _ when wordKind == WordKind.Whitespace: //control space
                     atoms.ControlSpace();
                     break;
@@ -393,7 +396,6 @@ BreakText(@"Here are some text $1 + 12 \frac23 \sqrt4$ $$Display$$ text")
                     atoms.Text(replaceResult);
                     break;
                   case var command:
-                    endAt = sharedCommandEnd;
                     return $@"Invalid command \{command}";
                 }
                 backslashEscape = false;

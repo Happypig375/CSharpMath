@@ -521,6 +521,9 @@ $$$$
     }
 
     [Theory]
+    [InlineData(@"\alpha.x", @"\alpha .x")]
+    [InlineData(@"\alphaé", @"\alpha é")]
+    [InlineData(@"\textbfé", @"\textbf{é}")]
     [InlineData(@"x\alpha@beta+", @"x\alpha @beta+")]
     [InlineData(@"x\alpha*+", @"x\alpha *+")]
     [InlineData(@"x\alpha=+", @"x\alpha =+")]
