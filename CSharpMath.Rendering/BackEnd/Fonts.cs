@@ -23,10 +23,7 @@ namespace CSharpMath.Rendering.BackEnd {
     }
     public Fonts(IEnumerable<Typeface> localTypefaces, float pointSize) {
       PointSize = pointSize;
-      Typefaces = localTypefaces.Select(typeface => {
-        BackEnd.Typefaces.EnsureGlyphBounds(typeface);
-        return typeface;
-      }).Concat(GlobalTypefaces);
+      Typefaces = localTypefaces.Select(BackEnd.Typefaces.EnsureGlyphBounds).Concat(GlobalTypefaces);
       MathTypeface = Typefaces.First(t => t.HasMathTable());
       MathConsts = MathTypeface.MathConsts ?? throw new Atom.InvalidCodePathException(nameof(MathTypeface) + " doesn't have " + nameof(MathConsts));
     }

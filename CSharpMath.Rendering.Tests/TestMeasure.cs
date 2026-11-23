@@ -7,6 +7,7 @@ namespace CSharpMath.Rendering.Tests {
   using CSharpMath.Display.FrontEnd;
   using SkiaSharp;
   using Typography.OpenFont.Extensions;
+  using Typography.OpenFont.Trimmable;
   using Xunit;
 
   [Collection(nameof(TestRenderingFixture))]
@@ -114,6 +115,21 @@ namespace CSharpMath.Rendering.Tests {
       Assert.Equal(baselineMeasure.Width, candidateMeasure.Width, 3);
       Assert.Equal(baselineMeasure.Height, candidateMeasure.Height, 3);
       Assert.True(candidateMeasure.Height > 100);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void TrimmedCffCanBeRegisteredAndRestored(bool local) {
+      var face = ReadMathFont()!;
+      var ticket = face.TrimDown();
+      System.Collections.Generic.IEnumerable<Typography.OpenFont.Typeface> registered =
+        local ? new Fonts(new[] { face }, 20) : new Typefaces(face);
+      Assert.Same(face, registered.First());
+      using var stream = typeof(Fonts).Assembly.GetManifestResourceStream(
+        "CSharpMath.Rendering.Reference_Fonts.latinmodern-math.otf");
+      face.RestoreUp(ticket, stream!);
+      Assert.True(registered.First().GetGlyph(face.GetGlyphIndex('A')).MaxY > 0);
     }
 
     static Typography.OpenFont.Typeface? ReadMathFont() {

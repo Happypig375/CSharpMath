@@ -5,6 +5,8 @@ using System.Linq;
 using Typography.OpenFont;
 using Typography.OpenFont.Extensions;
 
+using Typography.OpenFont.Trimmable;
+
 namespace CSharpMath.Rendering.BackEnd {
   /// <summary>Typefaces stored in order of precedence.</summary>
   /// <remarks>Custom fonts need a valid OpenType MATH table, including variants or assemblies, for mathematical stretching.</remarks>
@@ -29,14 +31,15 @@ namespace CSharpMath.Rendering.BackEnd {
       lock (_sync)
         _typefaces.Add(checked((sbyte)(_typefaces.Keys.Max() + 1)), item);
     }
-    internal static void EnsureGlyphBounds(Typeface typeface) {
-      if (typeface.IsCffFont)
+    internal static Typeface EnsureGlyphBounds(Typeface typeface) {
+      if (typeface.IsCffFont && !typeface.IsTrimmed())
         typeface.UpdateAllCffGlyphBounds();
+      return typeface;
     }
     /// <summary>Gets typefaces, from highest to lowest precedence.</summary>
     public IEnumerator<Typeface> GetEnumerator() {
       lock (_sync)
-        return _typefaces.OrderBy(p => p.Key).Select(p => p.Value).ToArray().AsEnumerable().GetEnumerator();
+        return _typefaces.OrderBy(p => p.Key).Select(p => p.Value).ToArray().Select(EnsureGlyphBounds).GetEnumerator();
     }
     IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
   }
