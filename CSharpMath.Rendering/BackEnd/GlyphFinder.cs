@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using CSharpMath.Atom;
+using CSharpMath.Rendering.Text;
 using Typography.OpenFont;
 using Typography.OpenFont.Extensions;
 
@@ -86,7 +87,7 @@ namespace CSharpMath.Rendering.BackEnd {
       // retry the same family/weight as upright before using the legacy Unicode fallback.
       var fallbackSemanticStyle = semanticStyle.Posture == FontPosture.Slanted
         ? semanticStyle.WithPosture(FontPosture.Upright) : semanticStyle;
-      var legacyStyle = fallbackSemanticStyle.ToFontStyle();
+      var legacyStyle = fallbackSemanticStyle.ToFontStyleForText();
       var styled = Display.UnicodeFontChanger.ChangeFont(str, legacyStyle);
       var sourceCodepoints = Typography.OpenFont.StringUtils.GetCodepoints(str.ToCharArray()).ToArray();
       var styledCodepoints = Typography.OpenFont.StringUtils.GetCodepoints(styled.ToCharArray()).ToArray();

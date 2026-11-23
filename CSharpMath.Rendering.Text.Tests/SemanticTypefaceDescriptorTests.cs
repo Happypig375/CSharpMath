@@ -21,6 +21,24 @@ namespace CSharpMath.Rendering.Text.Tests {
       return new OpenFontReader().Read(stream);
     }
 
+    [Theory]
+    [InlineData(FontWeight.Bold, FontPosture.Upright)]
+    [InlineData(FontWeight.Regular, FontPosture.Italic)]
+    [InlineData(FontWeight.Bold, FontPosture.Italic)]
+    public void RomanFallbackPreservesTextWeightAndPosture(FontWeight weight, FontPosture posture) {
+      var atom = new TextAtom.Style(new TextAtom.Text("A"),
+        new TextStyleChange(FontFamily.Roman, weight, posture, FontCapitals.Normal));
+      BackendGlyph GlyphFor(Fonts fonts) {
+        var line = TextTypesetter.Layout(atom, fonts, float.PositiveInfinity).relative;
+        var run = Assert.IsType<TextRunDisplay<Fonts, BackendGlyph>>(Assert.Single(line.Displays));
+        return Assert.Single(run.Run.GlyphInfos).Glyph;
+      }
+      var legacy = GlyphFor(new Fonts(Array.Empty<Typeface>(), 20));
+      var fallback = GlyphFor(Fonts.FromDescriptors(Array.Empty<TypefaceDescriptor>(), 20));
+      Assert.Same(legacy.Typeface, fallback.Typeface);
+      Assert.Equal(legacy.Info.GlyphIndex, fallback.Info.GlyphIndex);
+    }
+
     [Fact]
     public void ConfiguredSmallCapMapUsesGlyphAndRetainsSourceText() {
       var source = Read("SourceSerifPro-Regular.otf");
