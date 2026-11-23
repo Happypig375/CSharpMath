@@ -6,6 +6,7 @@ on:
     branches: [master]
   pull_request:
     paths:
+      - browser-smoke/**
       - CSharpMath.Blazor.Example/**
       - CSharpMath.Blazor.Example.Tests/**
       - CSharpMath/**

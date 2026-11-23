@@ -393,10 +393,10 @@ Shhh... Don't tell anybody!
 
 ## Blazor WebAssembly
 
-`CSharpMath.Blazor.Example` is a standalone browser-WASM sample. It owns the canvas lifecycle while `MathPainter` owns parsing, measuring, and drawing:
+`CSharpMath.Blazor.Example` is a standalone browser-WASM sample. It owns the canvas lifecycle while `MathPainter` handles parsing, measuring, and drawing. To build the sample from this checkout, use these references in its project file.
 
 ```xml
-<PackageReference Include="CSharpMath.SkiaSharp" Version="3.119.4" />
+<ProjectReference Include="..\CSharpMath.SkiaSharp\CSharpMath.SkiaSharp.csproj" />
 <PackageReference Include="SkiaSharp.Views.Blazor" Version="3.119.4" />
 ```
 

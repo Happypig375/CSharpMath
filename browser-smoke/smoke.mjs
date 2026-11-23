@@ -1,10 +1,13 @@
-import { chromium } from '@playwright/test';
+import { chromium, expect } from '@playwright/test';
 const base = process.env.BLAZOR_BASE_URL ?? 'http://127.0.0.1:4173';
 const launchOptions = process.env.BROWSER_EXECUTABLE_PATH ? { executablePath: process.env.BROWSER_EXECUTABLE_PATH, headless: true } : { channel: 'chromium', headless: true };
 const browser = await chromium.launch(launchOptions);
 const page = await browser.newPage({ deviceScaleFactor: 2, viewport: { width: 1100, height: 800 } });
 const errors = []; page.on('pageerror', e => errors.push(String(e))); page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
 await page.goto(base, { waitUntil: 'networkidle' });
+await expect(page.locator('.editor-grid')).toHaveCSS('display', 'grid');
+await expect(page.locator('#formula-text')).toHaveCSS('position', 'absolute');
+await expect(page.locator('#formula-text')).toHaveCSS('width', '1px');
 const canvas = page.locator('canvas'); await canvas.waitFor({ state: 'visible' });
 await page.waitForFunction(() => { const c = document.querySelector('canvas'); return c && c.width > 0 && c.height > 0; });
 const readCanvas = () => canvas.evaluate(c => {
