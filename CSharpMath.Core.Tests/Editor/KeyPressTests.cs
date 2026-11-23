@@ -418,6 +418,10 @@ namespace CSharpMath.Core.EditorTests {
     [T(@"\csc ", K.SmallC, K.SmallO, K.SmallS, K.SmallE, K.SmallC)]
     [T(@"\cot ", K.SmallC, K.SmallO, K.SmallT)]
     [T(@"\arcsin ", K.SmallA, K.SmallR, K.SmallC, K.SmallS, K.SmallI, K.SmallN)]
+    [T("s^2in", K.SmallS, K.Power, K.D2, K.Right, K.SmallI, K.SmallN)]
+    [T("sin^2x", K.SmallS, K.SmallI, K.SmallN, K.Power, K.D2, K.Right, K.SmallX)]
+    [T("sinx", K.SmallX, K.Left, K.SmallS, K.SmallI, K.SmallN)]
+    [T("cose", K.SmallC, K.SmallO, K.SmallS, K.SmallE, K.SmallC, K.Backspace)]
     public void TypedFunctions(string latex, params K[] inputs) => Test(latex, inputs);
 
     [Fact]
