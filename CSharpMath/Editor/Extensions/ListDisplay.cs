@@ -35,11 +35,12 @@ namespace CSharpMath.Editor {
         }
       }
       IDisplay<TFont, TGlyph>? displayWithPoint;
-      // Row and column numbers are meaningful only with their complete path.
-      // Use the nearest child even when the pointer is outside a ragged row.
-      if (self.TableBranch is MathListSubIndexType.TableRow or MathListSubIndexType.TableColumn)
-        displayWithPoint = closest;
-      else switch (xbounds.Count) {
+      switch (xbounds.Count) {
+        // Row and column numbers are meaningful only with their complete path.
+        // Use the nearest child even when the pointer is outside a ragged row.
+        case var _ when self.TableBranch is MathListSubIndexType.TableRow or MathListSubIndexType.TableColumn:
+          displayWithPoint = closest;
+          break;
         case 0:
           if (translatedPoint.X <= -PixelDelta)
             // All the way to the left
