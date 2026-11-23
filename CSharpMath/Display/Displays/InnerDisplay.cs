@@ -11,8 +11,8 @@ namespace CSharpMath.Display.Displays {
       Range = range;
     }
     internal InnerDisplay(ListDisplay<TFont, TGlyph> inner, IGlyphDisplay<TFont, TGlyph>? left,
-      IGlyphDisplay<TFont, TGlyph>? right, Range range, float completedInnerAdvance)
-      : this(inner, left, right, range) => _completedInnerAdvance = completedInnerAdvance;
+      IGlyphDisplay<TFont, TGlyph>? right, Range range, float completedInnerInkWidth)
+      : this(inner, left, right, range) => _completedInnerInkWidth = completedInnerInkWidth;
     ///<summary>A display representing the inner list that can be wrapped in delimiters.
     ///It's position is relative to the parent is not treated as a sub-display.</summary>
     public ListDisplay<TFont, TGlyph> Inner { get; }
@@ -25,9 +25,9 @@ namespace CSharpMath.Display.Displays {
 
     public float Ascent => System.Math.Max(Left?.Ascent ?? 0, System.Math.Max(Right?.Ascent ?? 0, Inner.Ascent));
     public float Descent => System.Math.Max(Left?.Descent ?? 0, System.Math.Max(Right?.Descent ?? 0, Inner.Descent));
-    private readonly float? _completedInnerAdvance;
+    private readonly float? _completedInnerInkWidth;
     private float InnerAdvance =>
-      _completedInnerAdvance ?? System.Math.Max(Inner.Width, Inner.InkWidth());
+      System.Math.Max(Inner.Width, _completedInnerInkWidth ?? Inner.ChildrenInkWidth());
     public float Width => (Left?.Width ?? 0) + InnerAdvance + (Right?.Width ?? 0);
 
     public Range Range { get; }

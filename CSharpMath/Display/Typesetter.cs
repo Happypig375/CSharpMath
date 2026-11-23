@@ -738,7 +738,7 @@ namespace CSharpMath.Display {
 
     private static bool SuccessorIsStraight(MathAtom atom) {
       if (atom is Ordinary)
-        return !IsSlantedOrdinary(LastFusedAtom(atom));
+        return !IsSlantedOrdinary(FirstFusedAtom(atom));
       if (atom is BinaryOperator or Relation or Punctuation or Open or Close or LargeDelimiter or LargeOperator)
         return true;
       if (atom is Colored colored) return FirstVisibleIsStraight(colored.InnerList);
@@ -763,8 +763,8 @@ namespace CSharpMath.Display {
         or >= 0x1D71C and <= 0x1D755;
     }
 
-    private static MathAtom LastFusedAtom(MathAtom atom) =>
-      atom.FusedAtoms is { Count: > 0 } fused ? fused[fused.Count - 1] : atom;
+    private static MathAtom FirstFusedAtom(MathAtom atom) =>
+      atom.FusedAtoms is { Count: > 0 } fused ? fused[0] : atom;
 
     private void ApplyFusedInternalItalicCorrections(
       MathAtom atom, AttributedGlyphRun<TFont, TGlyph> run) {
@@ -1144,11 +1144,10 @@ namespace CSharpMath.Display {
         inner.RightBoundary is Boundary { Nucleus: var right } && right?.Length > 0
         ? FindGlyphForBoundary(right, glyphHeight)
         : null;
-      // This nested layout is complete. Cache its local ink-aware advance so
-      // later width/position queries do not repeatedly traverse the tree.
-      var innerAdvance = Math.Max(innerListDisplay.Width, innerListDisplay.InkWidth());
+      // Cache the completed children's ink extent. The list's own advance can still be overridden.
+      var innerInkWidth = innerListDisplay.ChildrenInkWidth();
       return new InnerDisplay<TFont, TGlyph>(
-        innerListDisplay, leftGlyph, rightGlyph, range, innerAdvance);
+        innerListDisplay, leftGlyph, rightGlyph, range, innerInkWidth);
     }
 
     private IGlyphDisplay<TFont, TGlyph> FindGlyphForBoundary(

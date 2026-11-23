@@ -483,6 +483,27 @@ namespace CSharpMath.Rendering.Tests {
       Assert.Equal(0, FirstKern(latex));
     }
 
+    [Theory]
+    [InlineData("2", "2x")]
+    [InlineData("x", "x2")]
+    public void IncomingCorrectionUsesFirstFusedSuccessor(string first, string fused) {
+      Assert.Equal(FirstKern(@"\mathit{P}" + first), FirstKern(@"\mathit{P}" + fused), precision: 4);
+    }
+
+    [Fact]
+    public void ResizingTypesetInnerMovesRightDelimiter() {
+      var painter = new SkiaSharp.MathPainter { LaTeX = @"\left(x\right)" };
+      painter.Measure();
+      var list = Assert.IsType<Display.Displays.ListDisplay<Fonts, Glyph>>(painter.Display);
+      var inner = Assert.IsType<Display.Displays.InnerDisplay<Fonts, Glyph>>(Assert.Single(list.Displays));
+      var oldWidth = inner.Width;
+      var oldRight = inner.Right!.Position.X;
+      inner.Inner.SetOverrideMetrics(inner.Ascent, inner.Descent, inner.Inner.Width + 100);
+      inner.Position = inner.Position;
+      Assert.Equal(oldWidth + 100, inner.Width, precision: 3);
+      Assert.Equal(oldRight + 100, inner.Right.Position.X, precision: 3);
+    }
+
     [Fact]
     public void FusedOrdinaryRunAppliesEveryInternalItalicCorrection() {
       var glyphs = Assert.Single(FirstLine("P2Q3").Runs).Run.GlyphInfos;

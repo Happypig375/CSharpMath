@@ -10,14 +10,18 @@ namespace CSharpMath {
   /// <summary>Computes the horizontal painted extent without changing advance metrics.
   /// Positions in composite displays are normalized back to that display's origin.</summary>
   public static partial class Extensions {
+    internal static float ChildrenInkWidth<TFont, TGlyph>(this ListDisplay<TFont, TGlyph> list)
+      where TFont : IFont<TGlyph> {
+      float right = 0;
+      foreach (var child in list.Displays) right = Math.Max(right, child.Position.X + child.InkWidth());
+      return right;
+    }
+
     public static float InkWidth<TFont, TGlyph>(this IDisplay<TFont, TGlyph> display)
       where TFont : IFont<TGlyph> {
       if (display is IInkDisplay ink) return Math.Max(display.Width, ink.InkWidth);
-      if (display is ListDisplay<TFont, TGlyph> list) {
-        var result = list.Width;
-        foreach (var child in list.Displays) result = Math.Max(result, child.Position.X + child.InkWidth());
-        return result;
-      }
+      if (display is ListDisplay<TFont, TGlyph> list)
+        return Math.Max(list.Width, list.ChildrenInkWidth());
       if (display is TextLineDisplay<TFont, TGlyph> line) {
         var result = line.Width;
         foreach (var run in line.Runs) result = Math.Max(result, run.Position.X + run.InkWidth);
