@@ -73,6 +73,49 @@ namespace CSharpMath.Rendering.Tests {
     }
 
     [Fact]
+    public void PositiveLeftBearingExportContainsTheFullProof() {
+      var painter = new SkiaSharp.MathPainter { FontSize = 50, LaTeX = TestRenderingMathData.SimpleShortProof };
+      var bounds = painter.Measure();
+      Assert.True(bounds.Left > 4);
+      using var stream = painter.DrawAsStream();
+      using var output = SKBitmap.Decode(stream);
+      const int margin = 32;
+      using var reference = new SKBitmap(output.Width + margin * 2, output.Height + margin * 2);
+      using var canvas = new SKCanvas(reference);
+      painter.Draw(canvas, margin + 4 - bounds.Left, margin + 1 - bounds.Top);
+      Assert.Equal(reference.Pixels.Count(p => p.Alpha > 0), output.Pixels.Count(p => p.Alpha > 0));
+    }
+
+    sealed class MeasuredMathPainter : SkiaSharp.MathPainter {
+      public override RectangleF Measure(float width = float.NaN) {
+        base.Measure(width);
+        return new RectangleF(0, 0, 200, 80);
+      }
+    }
+
+    [Fact]
+    public void SingleLineExportHonorsOverriddenMeasure() {
+      var painter = new MeasuredMathPainter { LaTeX = "x" };
+      using var stream = painter.DrawAsStream();
+      using var image = SKBitmap.Decode(stream);
+      Assert.Equal(200, image.Width);
+      Assert.Equal(80, image.Height);
+    }
+
+    [Theory]
+    [InlineData(TextAlignment.Top)]
+    [InlineData(TextAlignment.TopRight)]
+    public void EqnArrayMathExportKeepsAllInkAcrossAlignments(TextAlignment alignment) {
+      var painter = new SkiaSharp.MathPainter { FontSize = 32, LaTeX = EqnArrayMath };
+      using var reference = painter.DrawAsStream(600);
+      using var aligned = painter.DrawAsStream(600, alignmentForTests: alignment);
+      using var left = SKBitmap.Decode(reference);
+      using var other = SKBitmap.Decode(aligned);
+      Assert.Equal(left.Info.Size, other.Info.Size);
+      Assert.Equal(left.Pixels.Count(p => p.Alpha > 0), other.Pixels.Count(p => p.Alpha > 0));
+    }
+
+    [Fact]
     public void EqnArrayStreamContainsTheCompleteComposite() {
       var painter = new SkiaSharp.TextPainter { FontSize = 32, LaTeX = EqnArrayText };
       using var stream = painter.DrawAsStream(600);

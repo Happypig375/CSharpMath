@@ -23,9 +23,8 @@ namespace CSharpMath.SkiaSharp {
         : display != null && DisplayInkBounds.ContainsMultipleRows(display)
           && DisplayInkBounds.ExtendsOwnAdvance(display);
       if (!expandsLegacyBounds) {
-        var legacyWidth = System.Math.Max(1, (int)(display?.Width ?? measure.Width));
-        var legacyHeight = System.Math.Max(1, (int)(display is null
-          ? measure.Height : display.Ascent + display.Descent));
+        var legacyWidth = System.Math.Max(1, (int)measure.Width);
+        var legacyHeight = System.Math.Max(1, (int)measure.Height);
         using var legacySurface = SKSurface.Create(new SKImageInfo(legacyWidth, legacyHeight));
         painter.Draw(legacySurface.Canvas, alignmentForTests);
         using var legacySnapshot = legacySurface.Snapshot();
@@ -37,12 +36,14 @@ namespace CSharpMath.SkiaSharp {
       // ink so antialiasing at an exact glyph edge is not clipped.
       var width = System.Math.Max(1, (int)System.Math.Ceiling(measure.Width) + 8);
       var height = System.Math.Max(1, (int)System.Math.Ceiling(measure.Height) + 4);
+      var mathBounds = display != null && painter is CSharpMath.Rendering.FrontEnd.MathPainter<SKCanvas, SKColor>
+        ? DisplayInkBounds.Get(display) : (RectangleF?)null;
       var origin = display is null ? default : IPainterExtensions.GetDisplayPosition(
-        display.Width, display.Ascent, display.Descent, painter.FontSize,
+        mathBounds?.Width ?? display.Width, display.Ascent, display.Descent, painter.FontSize,
         width, height, alignmentForTests, default, 0, 0);
       // Measure uses mathematical coordinates while the canvas is vertically
       // inverted. Translate both extrema into the allocated surface.
-      var offsetX = 4 - measure.Left - origin.X;
+      var offsetX = 4 - measure.Left - origin.X + (mathBounds?.Left ?? 0);
       var offsetY = origin.Y - measure.Top + 1;
       using var surface = SKSurface.Create(new SKImageInfo(width, height));
       if (painter is CSharpMath.Rendering.FrontEnd.TextPainter<SKCanvas, SKColor> textPainter)
