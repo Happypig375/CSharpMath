@@ -53,7 +53,17 @@ namespace CSharpMath.Uno {
   TContent> : XInheritControl, ICSharpMathAPI<TContent, XColor>
     where TPainter : Painter<XCanvas, TContent, XCanvasColor>, new() where TContent : class {
     public TPainter Painter { get; } = new TPainter();
-    bool _synchronizingProperties;
+    (string Name, object? Value)? _mirroredProperty;
+
+    void SetSynchronizedValue(XProperty property, object? value) {
+#if Uno
+      if (!UnoPropertySynchronization.ShouldAssignCounterpart(ReadLocalValue(property))) return;
+#endif
+      var previous = _mirroredProperty;
+      _mirroredProperty = (property == ContentProperty ? nameof(Content) : nameof(LaTeX), value);
+      try { SetValue(property, value); }
+      finally { _mirroredProperty = previous; }
+    }
     // Internal test seam; production views do not carry diagnostic state.
     internal virtual void OnDiagnostic(string _) { }
 
@@ -108,17 +118,19 @@ namespace CSharpMath.Uno {
         void PropertyChanged(TThis @this, object? newValue) {
           // Counterpart updates only mirror the already-updated painter state;
           // they must not parse/serialize it a second time or invalidate twice.
-          if (@this._synchronizingProperties) return;
+          if (@this._mirroredProperty is { } mirror && mirror.Name == propertyName
+              && ReferenceEquals(mirror.Value, newValue)) {
+            @this._mirroredProperty = null;
+            return;
+          }
           // We need to support nullable classes and structs, so we cannot forbid null here
           // So this use of the null-forgiving operator should be blamed on non-generic PropertyChanged handlers
           var @new = (TValue)newValue!;
           @this.OnDiagnostic(propertyName == nameof(Content) ? "ContentToLaTeX" : propertyName == nameof(LaTeX) ? "LaTeXToContent" : propertyName);
           propertySet(@this.Painter, @new);
           if (affectsMeasure) @this.InvalidateMeasureTracked();
+          updateOtherProperty?.Invoke(@this, @new);
 #if Avalonia
-          @this._synchronizingProperties = true;
-          try { updateOtherProperty?.Invoke(@this, @new); } // Re-assign LaTeX from Content or vice versa
-          finally { @this._synchronizingProperties = false; }
           @this.OnDiagnostic("VisualInvalidation");
           @this.InvalidateVisual();
         }
@@ -138,9 +150,6 @@ namespace CSharpMath.Uno {
       view.ErrorMessage = view.Painter.ErrorMessage;
     }
     void InvalidateMeasureTracked() { OnDiagnostic("MeasureInvalidation"); InvalidateMeasure(); }
-    void SetSynchronizedValue(XProperty property, object? value) {
-      SetValue(property, value);
-    }
     public BaseView() {
       // Respect built-in styles
       Styles.Add(new global::Avalonia.Styling.Style(global::Avalonia.Styling.Selectors.Is<BaseView<TPainter, TContent>>) {
@@ -192,9 +201,6 @@ namespace CSharpMath.Uno {
       base.Render(context);
       var canvas = new XCanvas(context, Bounds.Size);
 #elif Maui
-          @this._synchronizingProperties = true;
-          try { updateOtherProperty?.Invoke(@this, @new); } // Re-assign LaTeX from Content or vice versa
-          finally { @this._synchronizingProperties = false; }
           @this.OnDiagnostic("VisualInvalidation");
           @this.Invalidate();
         }
@@ -213,7 +219,6 @@ namespace CSharpMath.Uno {
       view.ErrorMessage = view.Painter.ErrorMessage;
     }
     void InvalidateMeasureTracked() { OnDiagnostic("MeasureInvalidation"); InvalidateMeasure(); }
-    void SetSynchronizedValue(XProperty property, object? value) => SetValue(property, value);
     protected override Microsoft.Maui.Graphics.Size MeasureOverride(double widthConstraint, double heightConstraint) =>
       Painter.Measure((float)widthConstraint) is { } rect
       ? new(Math.Min(rect.Width, widthConstraint), Math.Min(rect.Height, heightConstraint)) // We can't allocate too big of a GraphicsView on MAUI Windows.
@@ -251,12 +256,6 @@ namespace CSharpMath.Uno {
       // dirtyRect may be larger than Width and Height on Windows which leads to incorrect alignments
       var canvas = (rawCanvas, new Microsoft.Maui.Graphics.SizeF((float)Width, (float)Height));
 #elif Uno
-          // Keep the same guarded counterpart update on Uno/WinUI.  The guard
-          // prevents a second painter conversion; SetValue is the dependency
-          // property value update used by Uno for this control's properties.
-          @this._synchronizingProperties = true;
-          try { updateOtherProperty?.Invoke(@this, @new); }
-          finally { @this._synchronizingProperties = false; }
           @this.OnDiagnostic("VisualInvalidation");
           @this.Invalidate();
         }
@@ -275,10 +274,6 @@ namespace CSharpMath.Uno {
       view.ErrorMessage = view.Painter.ErrorMessage;
     }
     void InvalidateMeasureTracked() { OnDiagnostic("MeasureInvalidation"); InvalidateMeasure(); }
-    void SetSynchronizedValue(XProperty property, object? value) {
-      if (!UnoPropertySynchronization.ShouldAssignCounterpart(ReadLocalValue(property))) return;
-      SetValue(property, value);
-    }
     public BaseView() {
       PointerPressed += (sender, e) => {
         if (e.GetCurrentPoint(this) is { Properties.IsLeftButtonPressed: true } point && EnablePanning)

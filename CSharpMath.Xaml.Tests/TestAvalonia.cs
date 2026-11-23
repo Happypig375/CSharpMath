@@ -17,6 +17,17 @@ namespace CSharpMath.Xaml.Tests {
   }
   public class TestAvalonia
     : Test<Color, BindingMode, AvaloniaProperty, Control, MathView, TextView> {
+    [Xunit.Fact]
+    public void ContentListenerCanUpdatePainterProperties() {
+      var view = new MathView();
+      view.PropertyChanged += (_, e) => {
+        if (e.Property == MathView.ContentProperty) view.FontSize = 42;
+      };
+      view.LaTeX = "x";
+      Xunit.Assert.Equal(42f, view.FontSize);
+      Xunit.Assert.Equal(view.FontSize, view.Painter.FontSize);
+    }
+
     protected override Display.IDisplay<Rendering.BackEnd.Fonts, Rendering.BackEnd.Glyph> GetDisplay(Control control) {
       switch (control) {
         case MathView { Painter: var p }:
