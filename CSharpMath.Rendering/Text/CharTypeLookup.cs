@@ -12,31 +12,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-namespace Typography.TextBreak.SheenBidi.Data
-{
-    partial class CharTypeLookup
-    {
-        public static CharType DetermineCharType(int unicode)
-        {
-            // The pinned SheenBidi tables predate Adlam. Unicode 17 DerivedBidiClass
-            // assigns R throughout this block except for its seven nonspacing marks.
-            if (unicode >= 0x1E900 && unicode <= 0x1E95F)
-            {
-                return unicode >= 0x1E944 && unicode <= 0x1E94A ? CharType.NSM : CharType.R;
-            }
+namespace Typography.TextBreak.SheenBidi.Data {
+  partial class CharTypeLookup {
+    public static CharType DetermineCharType(int unicode) {
+      // The pinned SheenBidi tables predate Adlam. Unicode 17 DerivedBidiClass
+      // assigns R throughout this block except for its seven nonspacing marks.
+      if (unicode >= 0x1E900 && unicode <= 0x1E95F) {
+        return unicode >= 0x1E944 && unicode <= 0x1E94A ? CharType.NSM : CharType.R;
+      }
 
-            if (unicode <= 0x10FFFD)
-            {
-                return (CharType)PrimaryData[
-                                  MainIndexes[
-                                   BranchIndexes[
-                                         unicode / 0x2800
-                                   ] + ((unicode % 0x2800) / 0x100)
-                                  ] + (unicode % 0x100)
-                                 ];
-            }
+      if (unicode <= 0x10FFFD) {
+        return (CharType)PrimaryData[
+                          MainIndexes[
+                           BranchIndexes[
+                                 unicode / 0x2800
+                           ] + ((unicode % 0x2800) / 0x100)
+                          ] + (unicode % 0x100)
+                         ];
+      }
 
-            return CharType.L;
-        }
+      return CharType.L;
     }
+  }
 }
