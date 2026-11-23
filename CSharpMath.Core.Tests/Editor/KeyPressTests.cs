@@ -377,6 +377,27 @@ namespace CSharpMath.Core.EditorTests {
       Assert.Equal(@"\frac{a12X34e}{z}", keyboard.LaTeX);
     }
 
+    [Theory]
+    [InlineData("")]
+    [InlineData("_1^2")]
+    public void BackspaceKeepsTrailingSpaceWhenFlatteningFraction(string scripts) {
+      using var keyboard = new MathKeyboard<TestFont, TGlyph>(context, new TestFont());
+      var (list, error) = LaTeXParser.MathListFromLaTeX(@"\frac{x}{\mkern1mu}" + scripts);
+      Assert.Null(error);
+      keyboard.MathList.Append(list);
+      keyboard.InsertionIndex = new MathListIndex(0).LevelUpWithSubIndex(MathListSubIndexType.Numerator, 0);
+      keyboard.KeyPress(K.Backspace);
+      Assert.Equal(new MathListIndex(0), keyboard.InsertionIndex);
+      Assert.Equal("x", keyboard.MathList[0].Nucleus);
+      Assert.IsType<Atoms.Space>(keyboard.MathList[1]);
+      Assert.Equal(scripts.Length == 0 ? 2 : 3, keyboard.MathList.Count);
+      if (scripts.Length > 0) {
+        var owner = Assert.IsType<Atoms.Placeholder>(keyboard.MathList[2]);
+        Assert.Equal("1", Assert.Single(owner.Subscript).Nucleus);
+        Assert.Equal("2", Assert.Single(owner.Superscript).Nucleus);
+      }
+    }
+
     [Fact]
     public void BackspaceTransfersContainerScriptsToLastReplacement() {
       var fraction = new Atoms.Fraction(

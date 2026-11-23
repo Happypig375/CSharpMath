@@ -264,14 +264,12 @@ namespace CSharpMath.Editor {
       }
       if (caretOffsetInReplacement < 0)
         throw new InvalidOperationException("The selected field is not owned by its container");
-      if (replacementAtoms.Count > 0) {
-        replacementAtoms[replacementAtoms.Count - 1].Subscript.Append(atom.Subscript);
-        replacementAtoms[replacementAtoms.Count - 1].Superscript.Append(atom.Superscript);
-      } else if (atom.Subscript.IsNonEmpty() || atom.Superscript.IsNonEmpty()) {
-        var placeholder = LaTeXSettings.Placeholder;
-        placeholder.Subscript.Append(atom.Subscript);
-        placeholder.Superscript.Append(atom.Superscript);
-        replacementAtoms.Add(placeholder);
+      if (atom.Subscript.IsNonEmpty() || atom.Superscript.IsNonEmpty()) {
+        if (replacementAtoms.Count == 0 || !replacementAtoms[replacementAtoms.Count - 1].ScriptsAllowed)
+          replacementAtoms.Add(LaTeXSettings.Placeholder);
+        var owner = replacementAtoms[replacementAtoms.Count - 1];
+        owner.Subscript.Append(atom.Subscript);
+        owner.Superscript.Append(atom.Superscript);
       }
       self.RemoveAt(index.AtomIndex);
       InsertAll(self, index.AtomIndex, replacementAtoms);
