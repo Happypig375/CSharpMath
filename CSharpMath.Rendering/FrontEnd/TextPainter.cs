@@ -144,7 +144,7 @@ namespace CSharpMath.Rendering.FrontEnd {
         //offsetY is already included in _relativeXCoordDisplay.Position,
         //no need to add it again below
         _absoluteXCoordDisplay.Position =
-          new PointF(_absoluteXCoordDisplay.Position.X + offsetX,
+          new PointF(_absoluteXCoordDisplay.Position.X + offsetX + (constrained ? padding.Left : 0),
                      _absoluteXCoordDisplay.Position.Y + _relativeXCoordDisplay.Position.Y);
         Display = new ListDisplay<Fonts, Glyph>(new[] {
            _relativeXCoordDisplay, _absoluteXCoordDisplay

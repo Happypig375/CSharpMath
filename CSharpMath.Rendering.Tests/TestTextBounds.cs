@@ -94,6 +94,20 @@ namespace CSharpMath.Rendering.Tests {
       AssertRenderedRowsInside(bitmap, 56, Width + 120 - 113 + 19);
     }
 
+    [Theory]
+    [InlineData(80, 0)]
+    [InlineData(20, 60)]
+    public void DisplayMathCentersInsidePaddedRegion(int left, int right) {
+      var painter = new SkiaSharp.TextPainter { FontSize = 30, LaTeX = "$$x$$" };
+      var region = new RectangleF(15, 0, 300, 120);
+      using var bitmap = new SKBitmap(330, 120);
+      using var canvas = new SKCanvas(bitmap);
+      painter.Draw(canvas, region, TextAlignment.Top, new Thickness(left, 0, right, 0));
+      var ink = AssertRenderedRowsInside(bitmap, region.Left + left, region.Right - right);
+      var center = (region.Left + left + region.Right - right) / 2;
+      Assert.InRange(ink.Left + ink.Width / 2, center - 2, center + 2);
+    }
+
     [Fact]
     public void ExplicitBoundedDrawUsesTheSuppliedRegion() {
       var painter = new SkiaSharp.TextPainter { FontSize = 48, LaTeX = Italian };
