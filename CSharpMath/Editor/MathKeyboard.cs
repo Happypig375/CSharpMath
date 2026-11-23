@@ -329,6 +329,16 @@ namespace CSharpMath.Editor {
           return owner.LevelUpWithSubIndex(branch, index);
         }
 
+        static MathListIndex TableStop(MathListIndex owner, Atoms.Table table, int row, int column, bool right) {
+          for (; row >= 0 && row < table.NRows; row += right ? 1 : -1) {
+            var cells = table.Cells[row];
+            if (column >= 0 && column < cells.Count)
+              return owner.TableCell(row, column, new(right ? 0 : cells[column].Count));
+            column = right || row == 0 ? 0 : table.Cells[row - 1].Count - 1;
+          }
+          return right ? owner.Next : owner;
+        }
+
         MathListIndex? Step(bool moveRight) {
           var adjacent = moveRight ? MathList.AtomAt(_insertionIndex) : MathList.AtomAt(_insertionIndex.Previous);
           var terminalPlaceholder = moveRight
@@ -337,17 +347,29 @@ namespace CSharpMath.Editor {
             }
             && MathList.AtomAt(_insertionIndex.Next) is null;
           if (adjacent is not null && !terminalPlaceholder) {
+            var owner = moveRight ? _insertionIndex : _insertionIndex.Previous!;
+            if (adjacent is Atoms.Table table) {
+              var row = moveRight ? 0 : table.NRows - 1;
+              var column = moveRight || row < 0 ? 0 : table.Cells[row].Count - 1;
+              return TableStop(owner, table, row, column, moveRight);
+            }
             Span<MathListSubIndexType> branches = stackalloc MathListSubIndexType[5];
             var branchCount = Branches(adjacent, HorizontalNavigationMode, branches);
             if (branchCount == 0)
               return moveRight ? _insertionIndex.Next : _insertionIndex.Previous;
-            var owner = moveRight ? _insertionIndex : _insertionIndex.Previous!;
             return Enter(owner, adjacent, moveRight ? branches[0] : branches[branchCount - 1], !moveRight);
           }
 
           var ownerIndex = _insertionIndex.LevelDown();
           if (ownerIndex is null)
             return _insertionIndex; // root boundary
+          if (_insertionIndex.FinalSubIndexType == MathListSubIndexType.TableCell) {
+            var rowIndex = ownerIndex.LevelDown()!;
+            var tableIndex = rowIndex.LevelDown()!;
+            if (MathList.AtomAt(tableIndex) is Atoms.Table table)
+              return TableStop(tableIndex, table, rowIndex.FinalIndex,
+                ownerIndex.FinalIndex + (moveRight ? 1 : -1), moveRight);
+          }
           var ownerAtom = MathList.AtomAt(ownerIndex);
           if (ownerAtom is null)
             return _insertionIndex;
@@ -428,15 +450,6 @@ namespace CSharpMath.Editor {
           var targetCell = table.Cells[targetRow][targetColumn];
           var targetCaret = Math.Max(0, Math.Min(cell.AtomIndex, targetCell.Count));
           var candidate = new MathListIndex(index.AtomIndex).TableCell(targetRow, targetColumn, new MathListIndex(targetCaret));
-          // Older display backends do not yet expose table row paths to PointForIndex;
-          // retain the deterministic caret fallback when that seam cannot resolve one.
-          try {
-            var sourcePoint = ClosestPointToIndex(index);
-            if (sourcePoint is PointF point && ClosestPointToIndex(candidate) is PointF)
-              candidate = VerticalIndexAtPoint(candidate, point) ?? candidate;
-          } catch (ArgumentOutOfRangeException) {
-            // The model path remains valid even when the display path is not indexed.
-          }
           handled = true;
           return candidate;
         }
@@ -447,7 +460,11 @@ namespace CSharpMath.Editor {
       }
       bool MoveCursorInTable(bool down) {
         var result = FindTable(MathList, _insertionIndex, down, out var handled);
-        if (handled) _insertionIndex = result;
+        if (handled && result != _insertionIndex) {
+          if (ClosestPointToIndex(_insertionIndex) is PointF point && Display?.Width > 0)
+            result = VerticalIndexAtPoint(result, point) ?? result;
+          _insertionIndex = result;
+        }
         return handled;
       }
       void MoveCursorUp() {

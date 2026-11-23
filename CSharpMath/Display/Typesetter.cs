@@ -308,6 +308,8 @@ namespace CSharpMath.Display {
             AddDisplayLine(false);
             AddInterElementSpace(prevAtom, table);
             var tableDisplay = MakeTable(table);
+            tableDisplay.IndexInParent = table.IndexRange.Location;
+            tableDisplay.TableBranch = Editor.MathListSubIndexType.TableRow;
             _displayAtoms.Add(tableDisplay);
             _currentPosition.X += tableDisplay.Width;
             break;
@@ -970,7 +972,7 @@ namespace CSharpMath.Display {
       }
       return r;
     }
-    private IDisplay<TFont, TGlyph> MakeTable(Table table) {
+    private ListDisplay<TFont, TGlyph> MakeTable(Table table) {
       int nColumns = table.NColumns;
       if (nColumns == 0 || table.NRows == 0) {
         //Empty table
@@ -982,6 +984,8 @@ namespace CSharpMath.Display {
       var rowDisplays = new List<ListDisplay<TFont, TGlyph>>();
       foreach (var row in displays) {
         var rowDisplay = MakeRowWithColumns(row, table, columnWidths);
+        rowDisplay.IndexInParent = rowDisplays.Count;
+        rowDisplay.TableBranch = Editor.MathListSubIndexType.TableColumn;
         rowDisplays.Add(rowDisplay);
       }
 
@@ -999,6 +1003,8 @@ namespace CSharpMath.Display {
       Range rowRange = Range.NotFound;
       for (int i = 0; i < row.Count; i++) {
         var entry = row[i];
+        entry.IndexInParent = i;
+        entry.TableBranch = Editor.MathListSubIndexType.TableCell;
         float columnWidth = columnWidths[i];
         var alignment = table.GetAlignment(i);
         var cellPosition = columnStart;

@@ -43,9 +43,16 @@ namespace CSharpMath.Editor {
   public record class MathListIndex(int AtomIndex, (MathListSubIndexType SubIndexType, MathListIndex SubIndex)? SubIndexInfo = null) {
     /// <summary>Creates an index into a table cell while retaining its row and column.</summary>
     public MathListIndex TableCell(int row, int column, MathListIndex cellIndex) =>
+      SubIndexInfo is (var type, var child) ? child.TableCell(row, column, cellIndex).Wrap(AtomIndex, type) :
       new(AtomIndex, (MathListSubIndexType.TableRow,
         new(row, (MathListSubIndexType.TableColumn,
           new(column, (MathListSubIndexType.TableCell, cellIndex))))));
+    internal (int Row, int Column, MathListIndex Caret)? CellPath =>
+      SubIndexInfo is (MathListSubIndexType.TableRow, var row)
+      && row.SubIndexInfo is (MathListSubIndexType.TableColumn, var column)
+      && column.SubIndexInfo is (MathListSubIndexType.TableCell, var caret)
+      ? (row.AtomIndex, column.AtomIndex, caret) : null;
+
     /// <summary>
     /// Creates a new MathListIndex that represents a subindex within this list, wrapped at the specified outer atom
     /// index and subindex type.

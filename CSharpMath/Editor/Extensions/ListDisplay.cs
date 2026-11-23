@@ -15,10 +15,14 @@ namespace CSharpMath.Editor {
       // so translate the current point to our origin.
       var translatedPoint = new PointF(point.X - self.Position.X, point.Y - self.Position.Y);
 
+      if (self.TableBranch == MathListSubIndexType.TableCell && self.Displays.Count == 0)
+        return new(0);
       IDisplay<TFont, TGlyph>? closest = null;
       var xbounds = new List<IDisplay<TFont, TGlyph>>();
       float minDistance = float.MaxValue;
       foreach (var display in self.Displays) {
+        if (display is ListDisplay<TFont, TGlyph> { TableBranch: MathListSubIndexType.TableColumn, Displays.Count: 0 })
+          continue;
         var bounds = display.DisplayBounds();
         var rect = new RectangleF(display.Position, bounds.Size);
         var maxBoundsX = rect.Right;
@@ -31,7 +35,11 @@ namespace CSharpMath.Editor {
         }
       }
       IDisplay<TFont, TGlyph>? displayWithPoint;
-      switch (xbounds.Count) {
+      // Row and column numbers are meaningful only with their complete path.
+      // Use the nearest child even when the pointer is outside a ragged row.
+      if (self.TableBranch is MathListSubIndexType.TableRow or MathListSubIndexType.TableColumn)
+        displayWithPoint = closest;
+      else switch (xbounds.Count) {
         case 0:
           if (translatedPoint.X <= -PixelDelta)
             // All the way to the left
@@ -71,6 +79,8 @@ namespace CSharpMath.Editor {
 
       var index = displayWithPoint.IndexForPoint(context, translatedPoint);
       if (displayWithPoint is ListDisplay<TFont, TGlyph> closestLine) {
+        if (closestLine.TableBranch is { } branch)
+          return index?.Wrap(closestLine.IndexInParent, branch);
         if (closestLine.LinePosition is LinePosition.Regular)
           throw new ArgumentException(nameof(ListDisplay<TFont, TGlyph>) + " with " +
             nameof(ListDisplay<TFont, TGlyph>.LinePosition) + " " + nameof(LinePosition.Regular) +
@@ -99,6 +109,8 @@ namespace CSharpMath.Editor {
       where TFont : IFont<TGlyph> {
       if (index is null) return null;
 
+      if (self.TableBranch == MathListSubIndexType.TableCell && self.Displays.Count == 0)
+        return index == new MathListIndex(0) ? self.Position : null;
       PointF? position;
       if (index.AtomIndex == self.Range.End) {
         // Special case the edge of the range
@@ -106,6 +118,7 @@ namespace CSharpMath.Editor {
       } else if (self.Range.Contains(index.AtomIndex) && self.SubDisplayForIndex(index) is { } display)
         position = index.SubIndexInfo switch {
           (MathListSubIndexType.BetweenBaseAndScripts, var subIndex) => display.PointForIndex(context, new(index.AtomIndex + subIndex.AtomIndex)),
+          null when display is ListDisplay<TFont, TGlyph> { TableBranch: MathListSubIndexType.TableRow } => display.Position,
           null => display.PointForIndex(context, index),
           (_, var subIndex) => display.PointForIndex(context, subIndex) // Recurse
         };
@@ -156,7 +169,11 @@ namespace CSharpMath.Editor {
           }
       else
         foreach (var display in self.Displays)
-          if (display is not ListDisplay<TFont, TGlyph> && display.Range.Contains(index.AtomIndex))
+          if (display is ListDisplay<TFont, TGlyph> { TableBranch: { } branch } tableChild
+              && index.AtomIndex == tableChild.IndexInParent
+              && (index.SubIndexInfo is null || index.SubIndexInfo.Value.SubIndexType == branch))
+            return tableChild;
+          else if (display is not ListDisplay<TFont, TGlyph> && display.Range.Contains(index.AtomIndex))
             // not a subscript/superscript and ... jackpot, the the index is in the range of this atom.
             return (index.SubIndexInfo, display) switch {
               (null or (MathListSubIndexType.BetweenBaseAndScripts, _), _) => display,

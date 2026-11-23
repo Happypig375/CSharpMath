@@ -40,6 +40,10 @@ namespace CSharpMath.Editor {
           // Prevent further subindexing inside BetweenBaseAndScripts
           if (advanceType is { } && index.LevelDown() is MathListIndex levelDown) index = levelDown.Next;
           return self.InsertAtAtomIndexAndAdvance(atomIndex + 1, atom, index, advanceType);
+        case (MathListSubIndexType.TableRow, _) when self[index.AtomIndex] is Atoms.Table table
+          && index.CellPath is (var row, var column, var caret):
+          return new MathListIndex(index.AtomIndex).TableCell(row, column,
+            table.Cells[row][column].InsertAndAdvance(caret, atom, advanceType));
         case (MathListSubIndexType.Degree, var subIndex)
           when self.Atoms[index.AtomIndex] is Atoms.Radical radical ? true
                : throw new SubIndexTypeMismatchException(nameof(Atoms.Radical), index.AtomIndex):
@@ -110,6 +114,10 @@ namespace CSharpMath.Editor {
           index = downIndex;
           index = self.InsertAndAdvance(index, insertionAtom, null);
           return index.Previous ?? throw new InvalidCodePathException("Cannot go back after insertion?");
+        case (MathListSubIndexType.TableRow, _) when self[index.AtomIndex] is Atoms.Table table
+          && index.CellPath is (var row, var column, var caret):
+          index = new MathListIndex(index.AtomIndex).TableCell(row, column, table.Cells[row][column].RemoveAt(caret));
+          break;
         case (MathListSubIndexType.Degree, var subIndex)
           when self.Atoms[index.AtomIndex] is Atoms.Radical radical ? true
                : throw new SubIndexTypeMismatchException(nameof(Atoms.Radical), index.AtomIndex):
@@ -166,6 +174,10 @@ namespace CSharpMath.Editor {
           break;
         case (MathListSubIndexType.BetweenBaseAndScripts, _):
           throw new NotSupportedException("Nuclear fission is not supported");
+        case (MathListSubIndexType.TableRow, _) when self[start.AtomIndex] is Atoms.Table table
+          && start.CellPath is (var row, var column, var caret):
+          table.Cells[row][column].RemoveAtoms(new MathListRange(caret, range.Length));
+          break;
         case (MathListSubIndexType.Degree, _)
           when self.Atoms[start.AtomIndex] is Atoms.Radical radical ? true
                : throw new SubIndexTypeMismatchException(nameof(Atoms.Radical), start.AtomIndex):
@@ -217,12 +229,10 @@ namespace CSharpMath.Editor {
         (MathListSubIndexType.Numerator, var subIndex) => atom is Atoms.Fraction frac ? frac.Numerator.AtomAt(subIndex) : null,
         (MathListSubIndexType.Denominator, var subIndex) => atom is Atoms.Fraction frac ? frac.Denominator.AtomAt(subIndex) : null,
         (MathListSubIndexType.Inner, var subIndex) => atom is Atoms.Inner inner ? inner.InnerList.AtomAt(subIndex) : null,
-        (MathListSubIndexType.TableRow, var rowIndex) => atom is Atoms.Table table
-          && rowIndex.AtomIndex >= 0 && rowIndex.AtomIndex < table.Cells.Count
-          && rowIndex.SubIndexInfo is (MathListSubIndexType.TableColumn, var columnIndex)
-          && columnIndex.AtomIndex >= 0 && columnIndex.AtomIndex < table.Cells[rowIndex.AtomIndex].Count
-          && columnIndex.SubIndexInfo is (MathListSubIndexType.TableCell, var cellIndex)
-          ? table.Cells[rowIndex.AtomIndex][columnIndex.AtomIndex].AtomAt(cellIndex)
+        (MathListSubIndexType.TableRow, _) => atom is Atoms.Table table
+          && index.CellPath is (var row, var column, var caret)
+          && row >= 0 && row < table.Cells.Count && column >= 0 && column < table.Cells[row].Count
+          ? table.Cells[row][column].AtomAt(caret)
           : null,
         (var type, _) => throw new ArgumentOutOfRangeException(nameof(index), type, "Index type out of valid range."),
       };

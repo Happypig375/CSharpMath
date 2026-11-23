@@ -620,6 +620,33 @@ namespace CSharpMath.Core.EditorTests {
     }
 
     [Fact]
+    public void ArrowKeysEnterEditAndLeaveTableCells() {
+      var table = new CSharpMath.Atom.Atoms.Table();
+      table.SetCell(new(new CSharpMath.Atom.Atoms.Variable("a")), 0, 0);
+      table.SetCell(new(new CSharpMath.Atom.Atoms.Variable("b")), 1, 0);
+      using var keyboard = new MathKeyboard<TestFont, TGlyph>(context, new TestFont(20));
+      keyboard.MathList.Add(table);
+      keyboard.InsertionIndex = new(0);
+      keyboard.KeyPress(K.Right);
+      var tableIndex = new MathListIndex(0);
+      Assert.Equal(tableIndex.TableCell(0, 0, new(0)), keyboard.InsertionIndex);
+      var top = keyboard.ClosestPointToIndex(keyboard.InsertionIndex);
+      keyboard.KeyPress(K.Down);
+      Assert.Equal(tableIndex.TableCell(1, 0, new(0)), keyboard.InsertionIndex);
+      var bottom = keyboard.ClosestPointToIndex(keyboard.InsertionIndex);
+      Assert.True(top.HasValue && bottom.HasValue && top.Value.Y > bottom.Value.Y);
+      Assert.Equal(keyboard.InsertionIndex, keyboard.ClosestIndexToPoint(bottom!.Value));
+      keyboard.KeyPress(K.SmallX);
+      Assert.Equal("xb", CSharpMath.Atom.LaTeXParser.MathListToLaTeX(table.Cells[1][0]).ToString());
+      keyboard.KeyPress(K.Backspace);
+      Assert.Equal("b", CSharpMath.Atom.LaTeXParser.MathListToLaTeX(table.Cells[1][0]).ToString());
+      keyboard.KeyPress(K.Right, K.Right);
+      Assert.Equal(new MathListIndex(1), keyboard.InsertionIndex);
+      keyboard.KeyPress(K.Left);
+      Assert.Equal(tableIndex.TableCell(1, 0, new(1)), keyboard.InsertionIndex);
+    }
+
+    [Fact]
     public void TableIndexRetainsRowAndColumnAndMovesVertically() {
       var table = new CSharpMath.Atom.Atoms.Table();
       table.SetCell(new CSharpMath.Atom.MathList(new CSharpMath.Atom.Atoms.Number("12")), 0, 0);

@@ -21,6 +21,7 @@ namespace CSharpMath.Display.Displays {
     /// <summary>For a subscript or superscript, this is the index in the
     /// parent list. For a regular list, it is int.MinValue.</summary>
     public int IndexInParent { get; set; }
+    internal Editor.MathListSubIndexType? TableBranch { get; set; }
     public ListDisplay(IReadOnlyList<IDisplay<TFont, TGlyph>> displays) {
       Displays = displays;
       LinePosition = LinePosition.Regular;
@@ -34,7 +35,8 @@ namespace CSharpMath.Display.Displays {
       Range.Combine(
         Displays
         .Where(d => !(d is ListDisplay<TFont, TGlyph> ld && ld.LinePosition != LinePosition.Regular))
-        .Select(d => d.Range));
+        .Select(d => d is ListDisplay<TFont, TGlyph> { TableBranch: not null } child
+          ? new Range(child.IndexInParent, 1) : d.Range));
     public float Width => Displays.CollectionWidth();
     public void Draw(IGraphicsContext<TFont, TGlyph> context) {
       this.DrawBackground(context);
