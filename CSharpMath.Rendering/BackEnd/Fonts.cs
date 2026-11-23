@@ -30,7 +30,7 @@ namespace CSharpMath.Rendering.BackEnd {
       MathTypeface = Typefaces.First(t => t.HasMathTable());
       MathConsts = MathTypeface.MathConsts ?? throw new Atom.InvalidCodePathException(nameof(MathTypeface) + " doesn't have " + nameof(MathConsts));
     }
-    // The public constructor clones this private local-only snapshot. It must
+    // Resize reuses the original collection of local faces. It must
     // not receive Typefaces, which also contains globals and would retain every
     // preceding Fonts instance through a growing concatenation chain.
     internal static Fonts Resize(Fonts source, float pointSize) =>
@@ -66,9 +66,9 @@ namespace CSharpMath.Rendering.BackEnd {
       public void RemoveAt(int index) => throw new NotSupportedException();
     }
     static IEnumerable<Typeface> NormalizeLocals(IEnumerable<Typeface> input) {
-      if (input is Typeface[]) return input.ToArray();
-      if (input is ICollection<Typeface> || input is IReadOnlyCollection<Typeface>) return input;
-      return input.ToArray();
+      if (input is not Typeface[] && (input is ICollection<Typeface> || input is IReadOnlyCollection<Typeface>))
+        return input;
+      return Array.AsReadOnly(input.ToArray());
     }
   }
 }

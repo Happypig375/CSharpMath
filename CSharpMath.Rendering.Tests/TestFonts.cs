@@ -66,6 +66,21 @@ namespace CSharpMath.Rendering.Tests {
       Assert.Throws<NotSupportedException>(() => ((IList<Typeface>)painter.LocalTypefaces).Add(first));
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void ResizedPainterKeepsSnapshotsReadOnly(bool oneShot) {
+      var first = Fonts.GlobalTypefaces.First();
+      var other = Fonts.GlobalTypefaces.Skip(1).First();
+      var input = new[] { first };
+      var painter = new ProbePainter { LocalTypefaces = oneShot ? new SingleUseEnumerable(input) : input };
+      var exposed = (IList<Typeface>)painter.LocalTypefaces;
+      painter.FontSize = 25;
+      Assert.Throws<NotSupportedException>(() => exposed[0] = other);
+      Assert.Same(first, painter.LocalTypefaces.Single());
+      Assert.Same(first, painter.CurrentFonts.Typefaces.First());
+    }
+
     [Fact]
     public void PainterRetainsLocalSnapshotAcrossRepeatedSizeChanges() {
       var source = new SingleUseEnumerable(new[] { Fonts.GlobalTypefaces.First() });
