@@ -887,16 +887,17 @@ namespace CSharpMath.Atom {
         case "alignedat": {
             // Generalization of aligned to n alignment pairs (2n columns). The raw
             // argument is the declared pair count; require a positive integer and a
-            // column count that matches it.
+            // column count within that capacity.
             var argument = (arrayAlignments ?? "").Trim();
             bool numeric = argument.Length > 0;
             foreach (var c in argument) numeric &= c >= '0' && c <= '9';
             if (!numeric || !int.TryParse(argument, out var pairs) || pairs < 1) {
               return @"alignedat requires a numeric argument, e.g. \begin{alignedat}{2}";
             }
-            if (table.NColumns != 2 * pairs) {
-              return $@"alignedat declares {{{pairs}}} ({2 * pairs} columns) but a row has {table.NColumns} columns";
+            if (table.NColumns > 2L * pairs) {
+              return $@"alignedat declares {{{pairs}}} ({2L * pairs} columns) but a row has {table.NColumns} columns";
             }
+            table.AlignmentPairs = pairs;
             // Relation spacer before each odd column for correct = / relation spacing.
             var spacer = new Ordinary(string.Empty);
             foreach (var row in table.Cells) {
@@ -1249,7 +1250,7 @@ namespace CSharpMath.Atom {
             if (table.Environment != null) {
               builder.Append(@"\begin{" + table.Environment + "}");
               if (table.Environment == "alignedat") {
-                builder.Append('{').Append(table.NColumns / 2).Append('}');
+                builder.Append('{').Append(System.Math.Max(table.AlignmentPairs ?? 1, (table.NColumns + 1) / 2)).Append('}');
               } else if (table.Environment == "array") {
                 // Reconstruct the column spec: |count then l/c/r per column.
                 builder.Append('{');

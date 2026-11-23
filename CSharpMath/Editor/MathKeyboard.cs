@@ -87,9 +87,49 @@ namespace CSharpMath.Editor {
     /// <summary><see cref="Display"/> should be redrawn.</summary>
     public event EventHandler? RedrawRequested;
     public PointF? ClosestPointToIndex(MathListIndex index) =>
-      Display?.PointForIndex(Context, index);
+      Display?.PointForIndex(Context, TranslateCaretIndex(MathList, index, toDisplay: true));
     public MathListIndex? ClosestIndexToPoint(PointF point) =>
-      Display?.IndexForPoint(Context, point);
+      Display?.IndexForPoint(Context, point) is { } index
+        ? TranslateCaretIndex(MathList, index, toDisplay: false) : null;
+
+    // A brace group occupies one editable atom, but its display spans the child atoms.
+    static MathListIndex TranslateCaretIndex(MathList list, MathListIndex index, bool toDisplay) {
+      int displayStart = 0;
+      for (int i = 0; i < list.Count; i++) {
+        var atom = list[i];
+        var width = atom is Atoms.Group group ? GroupWidth(group.InnerList) : 1;
+        if (toDisplay ? i == index.AtomIndex : index.AtomIndex < displayStart + width) {
+          int mapped = toDisplay ? displayStart : i;
+          if (!toDisplay && index.AtomIndex > displayStart) {
+            int offset = index.AtomIndex - displayStart;
+            return new(offset < width - offset ? i : i + 1);
+          }
+          if (index.SubIndexInfo is not { } branch) return new(mapped);
+          var childList = branch.SubIndexType switch {
+            MathListSubIndexType.Superscript when atom.Superscript.Count > 0 => atom.Superscript,
+            MathListSubIndexType.Subscript when atom.Subscript.Count > 0 => atom.Subscript,
+            MathListSubIndexType.Numerator when atom is Atoms.Fraction f => f.Numerator,
+            MathListSubIndexType.Denominator when atom is Atoms.Fraction f => f.Denominator,
+            MathListSubIndexType.Radicand when atom is Atoms.Radical r => r.Radicand,
+            MathListSubIndexType.Degree when atom is Atoms.Radical r => r.Degree,
+            MathListSubIndexType.Inner when atom is Atoms.Inner inner => inner.InnerList,
+            _ => null
+          };
+          if (childList != null)
+            return TranslateCaretIndex(childList, branch.SubIndex, toDisplay).Wrap(mapped, branch.SubIndexType);
+          if (atom is Atoms.Group && branch.SubIndexType != MathListSubIndexType.BetweenBaseAndScripts)
+            return new(mapped);
+          return new(mapped, branch);
+        }
+        displayStart += width;
+      }
+      return new(toDisplay ? displayStart : list.Count);
+    }
+
+    static int GroupWidth(MathList contents) {
+      var finalized = contents.Clone(true);
+      return finalized.Count == 0 ? 1 : Math.Max(1, finalized[finalized.Count - 1].IndexRange.End);
+    }
     public void KeyPress(params MathKeyboardInput[] inputs) {
       foreach (var input in inputs) KeyPress(input);
     }
@@ -816,7 +856,7 @@ namespace CSharpMath.Editor {
 
     public void HighlightCharacterAt(MathListIndex index, Color color) {
       // setup highlights before drawing the MTLine
-      Display?.HighlightCharacterAt(index, color);
+      Display?.HighlightCharacterAt(TranslateCaretIndex(MathList, index, toDisplay: true), color);
       RedrawRequested?.Invoke(this, EventArgs.Empty);
     }
 

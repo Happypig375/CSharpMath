@@ -14,6 +14,7 @@ namespace CSharpMath.Atom.Atoms {
       InterRowAdditionalSpacing = InterRowAdditionalSpacing,
       Environment = Environment,
       CellStyle = CellStyle,
+      AlignmentPairs = AlignmentPairs,
       VerticalLines = VerticalLines.ToList(),
       HorizontalLines = HorizontalLines.ToList(),
       Alignments = Alignments.ToList(),
@@ -47,6 +48,7 @@ namespace CSharpMath.Atom.Atoms {
     public string? Environment { get; set; }
     /// <summary>Number of rows</summary>
     public int NRows => Cells.Count;
+    internal int? AlignmentPairs { get; set; }
     /// <summary>Number of columns</summary>
     public int NColumns => NRows == 0 ? 0 : Cells.Max(row => row.Count);
     public void SetCell(MathList list, int iRow, int iColumn) {
@@ -66,7 +68,7 @@ namespace CSharpMath.Atom.Atoms {
         Alignments.SequenceEqual(otherTable.Alignments) &&
         InterColumnSpacing == otherTable.InterColumnSpacing &&
         InterRowAdditionalSpacing == otherTable.InterRowAdditionalSpacing &&
-        CellStyle == otherTable.CellStyle &&
+        CellStyle == otherTable.CellStyle && AlignmentPairs == otherTable.AlignmentPairs &&
         VerticalLines.SequenceEqual(otherTable.VerticalLines) &&
         HorizontalLines.SequenceEqual(otherTable.HorizontalLines) &&
         Environment == otherTable.Environment;
@@ -74,7 +76,7 @@ namespace CSharpMath.Atom.Atoms {
     public override int GetHashCode() =>
       (base.GetHashCode(), NestedSequenceHash(Cells), SequenceHash(Alignments),
         InterColumnSpacing, InterRowAdditionalSpacing, CellStyle,
-        (SequenceHash(VerticalLines), SequenceHash(HorizontalLines), Environment)).GetHashCode();
+        (SequenceHash(VerticalLines), SequenceHash(HorizontalLines), Environment, AlignmentPairs)).GetHashCode();
     private static int NestedSequenceHash(IEnumerable<IEnumerable<MathList>> rows) =>
       SequenceHash(rows.Select(SequenceHash));
     private static int SequenceHash<T>(IEnumerable<T> items) {

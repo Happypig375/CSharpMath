@@ -509,8 +509,11 @@ namespace CSharpMath.Core.AtomTests {
     }
     [Fact]
     public void AlignedatValidatesColumnCount() {
-      // 3 columns != 2n for any n
-      Assert.NotNull(new LaTeXParser(@"\begin{alignedat}{2} a&b&c \end{alignedat}").Build().Error);
+      const string shortRow = @"\begin{alignedat}{3}a&b&c\end{alignedat}";
+      var table = Assert.IsType<Table>(Assert.Single(ParseLaTeX(shortRow)));
+      Assert.Contains(@"\begin{alignedat}{3}", LaTeXParser.MathListToLaTeX(new MathList(table.Clone(false))).ToString());
+      Assert.Null(new LaTeXParser(RoundTrip(shortRow)).Build().Error);
+      Assert.NotNull(new LaTeXParser(@"\begin{alignedat}{1}a&b&c\end{alignedat}").Build().Error);
       // Missing argument
       Assert.NotNull(new LaTeXParser(@"\begin{alignedat} a & b \end{alignedat}").Build().Error);
     }

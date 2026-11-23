@@ -25,6 +25,22 @@ namespace CSharpMath.Core.EditorTests {
         () => keyboard.KeyPress(inputs));
     }
 
+    [Theory]
+    [InlineData("a{bc}z")]
+    [InlineData("a{{bc}d}z")]
+    public void TappingAfterAGroupAppendsToTheModel(string latex) {
+      using var keyboard = new MathKeyboard<TestFont, TGlyph>(context, new TestFont());
+      var (list, error) = Atom.LaTeXParser.MathListFromLaTeX(latex);
+      Assert.Null(error);
+      keyboard.MathList.Append(list);
+      keyboard.InsertionIndex = new(0);
+      keyboard.MoveCaretToPoint(new(keyboard.Display!.Width + 6, 0));
+      Assert.Equal(new MathListIndex(list.Count), keyboard.InsertionIndex);
+      Assert.Equal(keyboard.Display.Width, keyboard.ClosestPointToIndex(keyboard.InsertionIndex)!.Value.X);
+      keyboard.KeyPress(K.SmallX);
+      Assert.Equal(latex + "x", keyboard.LaTeX);
+    }
+
     [Fact]
     public void NoDuplicateValues() {
       var names = Enum.GetNames(typeof(K));
