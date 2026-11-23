@@ -725,6 +725,11 @@ namespace CSharpMath.Display {
           }
           displays.Add(segmentDisplays[i]);
         }
+        float x = 0;
+        foreach (var child in displays) {
+          child.Position = new PointF(x, child.Position.Y);
+          x += child.Width;
+        }
         innerListDisplay = new ListDisplay<TFont, TGlyph>(displays);
       }
 

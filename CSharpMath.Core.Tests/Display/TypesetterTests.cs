@@ -324,6 +324,12 @@ namespace CSharpMath.Core.DisplayTests {
       var inner = line.Displays.OfType<InnerDisplay<TFont, TGlyph>>().Single();
       Assert.True(inner.HasScript);
       Assert.Equal(5, inner.Inner.Displays.Count);
+      float x = 0;
+      foreach (var child in inner.Inner.Displays) {
+        Approximately.Equal(x, child.Position.X);
+        x += child.Width;
+      }
+      Approximately.Equal(x, inner.Inner.Width);
       var middle = Assert.IsType<GlyphDisplay<TFont, TGlyph>>(inner.Inner.Displays[1]);
       var middle2 = Assert.IsType<GlyphDisplay<TFont, TGlyph>>(inner.Inner.Displays[3]);
       Assert.Equal('|', middle.Glyph.ToString()[0]);
