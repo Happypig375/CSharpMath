@@ -1,5 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
+    <CSharpMathRoot Condition="'$(CSharpMathRoot)' == ''">$(MSBuildThisFileDirectory)..\..</CSharpMathRoot>
     <OutputType>Exe</OutputType>
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
@@ -9,6 +10,6 @@
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="ModeMath" Version="0.12.0-csharpmath-study.1ba976e" />
-    <ProjectReference Include="..\..\CSharpMath.SkiaSharp\CSharpMath.SkiaSharp.csproj" />
+    <ProjectReference Include="$(CSharpMathRoot)\CSharpMath.SkiaSharp\CSharpMath.SkiaSharp.csproj" />
   </ItemGroup>
 </Project>

@@ -50,7 +50,23 @@ $json = @($result) | ConvertTo-Json -Depth 4
 if ($Check) {
     if (-not (Test-Path $Output)) { throw "Missing aggregate artifact: $Output" }
     $expected = @(Get-Content $Output -Raw | ConvertFrom-Json)
-    if (($json | ConvertFrom-Json | ConvertTo-Json -Depth 4) -ne ($expected | ConvertTo-Json -Depth 4)) { throw 'Aggregate artifact does not match raw-results.ndjson' }
+    $actualRows = @($result | Sort-Object { $_.library }, { $_.metric })
+    $expectedRows = @($expected | Sort-Object library, metric)
+    if ($actualRows.Count -ne $expectedRows.Count) { throw 'Aggregate row count differs' }
+    for ($i = 0; $i -lt $actualRows.Count; $i++) {
+        $actual = $actualRows[$i]
+        $saved = $expectedRows[$i]
+        if (Compare-Object @($actual.Keys) @($saved.psobject.Properties.Name)) { throw 'Aggregate fields differ' }
+        foreach ($key in $actual.Keys) {
+            $value = $saved.$key
+            $validType = if ($actual[$key] -is [string]) { $value -is [string] } else {
+                $value -is [long] -or $value -is [double] -or $value -is [int] -or $value -is [decimal]
+            }
+            if (-not $validType -or $actual[$key] -cne $value) {
+                throw "Aggregate differs at $($actual.metric).$key"
+            }
+        }
+    }
     Write-Host 'Aggregate check passed.'
 } else {
     Set-Content -Path $Output -Value $json -Encoding utf8

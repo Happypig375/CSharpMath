@@ -15,15 +15,26 @@ dotnet pack "$ModeMathRoot\ModeMath\ModeMath.fsproj" -c Release --no-build -p:Pa
 Get-FileHash "$ModeMathPackages\ModeMath.$ModeMathVersion.nupkg" -Algorithm SHA256
 ```
 
-Restore and build this harness from the CSharpMath repository. The local package source must come first so the pinned package is selected; keep nuget.org for transitive dependencies:
+The published capture pins the package bytes as well as the source commit. A local pack can have a different SHA-256. To reproduce that capture, use the package whose SHA-256 is `0B03977732F2CE13EC9A290DD28A30DAFEF48E81ED36FC0B38670B4342700926`.
+
+Keep the harness checkout on this study revision. Create a separate checkout of the pinned CSharpMath product and initialize its font dependency.
+
+```powershell
+$CSharpMathRoot = 'C:\path\to\CSharpMath-e1cb9d6'
+git worktree add --detach $CSharpMathRoot e1cb9d6270289ec1903022ba7a3275ba52a3d819
+git -C $CSharpMathRoot submodule update --init Typography
+```
+
+Restore and build this harness from the study checkout with the product path explicitly selected. The local package source must come first so the pinned package is selected; keep nuget.org for transitive dependencies:
 
 ```powershell
 dotnet restore research\ModeMathStudyBench\ModeMathStudyBench.fsproj `
+  "-p:CSharpMathRoot=$CSharpMathRoot" `
   --source $ModeMathPackages `
   --source "https://api.nuget.org/v3/index.json" `
   --no-cache --force-evaluate -p:NoWarn=NU1605
 dotnet build research\ModeMathStudyBench\ModeMathStudyBench.fsproj `
-  -c Release --no-restore -p:GeneratePackageOnBuild=false
+  "-p:CSharpMathRoot=$CSharpMathRoot" -c Release --no-restore -p:GeneratePackageOnBuild=false
 ```
 
 `NU1605` is suppressed only for this pinned study: the current `SimpleTests` dependency requests a newer `FSharp.Core` than ModeMath's pinned floor. The ModeMath library itself builds without that suppression.
@@ -32,14 +43,14 @@ Each cold sample must be a fresh process. The checked-in `capture.ps1` validates
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File research\ModeMathStudyBench\capture.ps1 `
-  -ModeMathRoot $ModeMathRoot -PackageDirectory $ModeMathPackages
+  -CSharpMathRoot $CSharpMathRoot -ModeMathRoot $ModeMathRoot -PackageDirectory $ModeMathPackages
 ```
 
 Run steady-state parse, layout, draw, and three-key editor updates separately:
 
 ```powershell
-dotnet run --project research\ModeMathStudyBench -c Release --no-build -- steady-modemath
-dotnet run --project research\ModeMathStudyBench -c Release --no-build -- steady-csharpmath
+dotnet run --project research\ModeMathStudyBench "-p:CSharpMathRoot=$CSharpMathRoot" -c Release --no-build -- steady-modemath
+dotnet run --project research\ModeMathStudyBench "-p:CSharpMathRoot=$CSharpMathRoot" -c Release --no-build -- steady-csharpmath
 ```
 
 The harness intentionally measures managed allocations only. Skia native allocations, JIT/code pages, process startup, and platform variance are outside these numbers and must be stated alongside any result.

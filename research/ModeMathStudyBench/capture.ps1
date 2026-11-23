@@ -1,6 +1,7 @@
 param(
     [Parameter(Mandatory = $true)][string]$ModeMathRoot,
     [Parameter(Mandatory = $true)][string]$PackageDirectory,
+    [Parameter(Mandatory = $true)][string]$CSharpMathRoot,
     [string]$Output = "$PSScriptRoot\raw-results.ndjson"
 )
 $ErrorActionPreference = 'Stop'
@@ -10,18 +11,21 @@ $csharpMathCommit = 'e1cb9d6270289ec1903022ba7a3275ba52a3d819'
 $modeMathVersion = '0.12.0-csharpmath-study.1ba976e'
 $modeMathPackageFile = "ModeMath.$modeMathVersion.nupkg"
 $modeMathPackageSha256 = '0B03977732F2CE13EC9A290DD28A30DAFEF48E81ED36FC0B38670B4342700926'
-$modeMathGit = Join-Path $ModeMathRoot '.git'
-if (-not (Test-Path $modeMathGit)) { throw "ModeMathRoot is not a Git checkout: $ModeMathRoot" }
-$modeMathRevision = (git -C $ModeMathRoot rev-parse HEAD).Trim()
+function Get-CleanRevision([string]$root, [string[]]$paths = @('.')) {
+    $revision = git -C $root rev-parse --verify HEAD
+    if ($LASTEXITCODE -ne 0) { throw "Cannot read the revision at $root" }
+    $changes = git -C $root status --porcelain -- $paths
+    if ($LASTEXITCODE -ne 0) { throw "Cannot inspect the working tree at $root" }
+    if ($changes) { throw "Source files must be clean at $root" }
+    return $revision
+}
+$modeMathRevision = Get-CleanRevision $ModeMathRoot
 if ($modeMathRevision -ne $modeMathCommit) { throw "ModeMathRoot must be pinned to $modeMathCommit (found $modeMathRevision)" }
-if ((git -C $ModeMathRoot status --porcelain).Trim()) { throw 'ModeMathRoot must have a clean working tree' }
-$csharpRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
-$csharpRevision = (git -C $csharpRoot rev-parse HEAD).Trim()
-if ($csharpRevision -ne $csharpMathCommit) { throw "CSharpMath checkout must be pinned to $csharpMathCommit (found $csharpRevision)" }
-git -C $csharpRoot diff --quiet HEAD -- CSharpMath CSharpMath.Rendering CSharpMath.SkiaSharp research/ModeMathStudyBench/ModeMathStudyBench.fsproj research/ModeMathStudyBench/Program.fs research/ModeMathStudyBench/capture.ps1 research/ModeMathStudyBench/aggregate.ps1
-if ($LASTEXITCODE -ne 0) { throw 'CSharpMath product/harness sources must be clean' }
-git -C $csharpRoot diff --cached --quiet HEAD -- CSharpMath CSharpMath.Rendering CSharpMath.SkiaSharp research/ModeMathStudyBench/ModeMathStudyBench.fsproj research/ModeMathStudyBench/Program.fs research/ModeMathStudyBench/capture.ps1 research/ModeMathStudyBench/aggregate.ps1
-if ($LASTEXITCODE -ne 0) { throw 'CSharpMath product/harness sources must be clean in the index' }
+$csharpRoot = (Resolve-Path -LiteralPath $CSharpMathRoot).Path
+$csharpRevision = Get-CleanRevision $csharpRoot
+if ($csharpRevision -ne $csharpMathCommit) { throw "CSharpMathRoot must be pinned to $csharpMathCommit (found $csharpRevision)" }
+$harnessRevision = Get-CleanRevision $PSScriptRoot @('ModeMathStudyBench.fsproj', 'Program.fs', 'capture.ps1', 'aggregate.ps1')
+$productProperty = "-p:CSharpMathRoot=$csharpRoot"
 $package = Get-Item (Join-Path $PackageDirectory $modeMathPackageFile) -ErrorAction SilentlyContinue
 if ($null -eq $package) { throw "Missing pinned ModeMath package: $modeMathPackageFile" }
 $packageHash = (Get-FileHash $package.FullName -Algorithm SHA256).Hash
@@ -34,22 +38,22 @@ try {
     $localSource = [System.Security.SecurityElement]::Escape((Resolve-Path $PackageDirectory).Path)
     $config = '<configuration><packageSources><clear /><add key="study-package" value="' + $localSource + '" /><add key="nuget.org" value="https://api.nuget.org/v3/index.json" /></packageSources></configuration>'
     Set-Content -LiteralPath $configPath -Encoding utf8 -Value $config
-    & dotnet restore $project --configfile $configPath --no-cache --force-evaluate -p:RestorePackagesPath=$restorePackagesPath -p:NoWarn=NU1605
+    & dotnet restore $project $productProperty --configfile $configPath --no-cache --force-evaluate -p:RestorePackagesPath=$restorePackagesPath -p:NoWarn=NU1605
     if ($LASTEXITCODE -ne 0) { throw 'Harness restore failed' }
     $assetsPath = Join-Path $PSScriptRoot 'obj\project.assets.json'
     $assets = Get-Content $assetsPath -Raw | ConvertFrom-Json
     $assetLibraries = @($assets.libraries.psobject.Properties.Name)
     if ($assetLibraries -notcontains "ModeMath/$modeMathVersion") { throw "Resolved assets do not contain pinned ModeMath/$modeMathVersion" }
-    $restoredPackage = Get-Item (Join-Path $restorePackagesPath "modemath\$modeMathVersion\$modeMathPackageFile") -ErrorAction SilentlyContinue
+    $restoredPackage = Get-Item (Join-Path $restorePackagesPath "modemath\$modeMathVersion\$($modeMathPackageFile.ToLowerInvariant())") -ErrorAction SilentlyContinue
     if ($null -eq $restoredPackage) { throw 'Pinned package was not restored into the isolated package cache' }
     if ((Get-FileHash $restoredPackage.FullName -Algorithm SHA256).Hash -ne $modeMathPackageSha256) { throw 'Restored package hash does not match validated source package' }
-    & dotnet build $project -c Release --no-restore -p:RestorePackagesPath=$restorePackagesPath -p:GeneratePackageOnBuild=false
+    & dotnet build $project $productProperty -c Release --no-restore -p:RestorePackagesPath=$restorePackagesPath -p:GeneratePackageOnBuild=false
     if ($LASTEXITCODE -ne 0) { throw 'Harness Release build failed' }
 $runtime = ((& dotnet --list-runtimes | Select-String 'Microsoft.NETCore.App 10\.').Line -split ' ')[1]
-$meta = [ordered]@{ record = 'metadata'; modeMathRevision = $modeMathRevision; csharpMathRevision = $csharpRevision; os = [Environment]::OSVersion.VersionString; runtime = $runtime; sdk = (& dotnet --version).Trim(); rid = 'win-x64'; configuration = 'Release'; font = 'ModeMath Layout 32 px / CSharpMath FontSize 24 pt at 96 DPI'; corpus = @('x^2 + y_1', '\frac{-b \pm \sqrt{b^2 - 4ac}}{2a}', '\int_0^1 x^2\,dx'); iterations = @{ parse = 10000; layout = 5000; draw = 2000; editor = 2000 }; packageFile = $package.Name; packageSha256 = $packageHash }
+$meta = [ordered]@{ record = 'metadata'; modeMathRevision = $modeMathRevision; csharpMathRevision = $csharpRevision; harnessRevision = $harnessRevision; os = [Environment]::OSVersion.VersionString; runtime = $runtime; sdk = (& dotnet --version).Trim(); rid = 'win-x64'; configuration = 'Release'; font = 'ModeMath Layout 32 px / CSharpMath FontSize 24 pt at 96 DPI'; corpus = @('x^2 + y_1', '\frac{-b \pm \sqrt{b^2 - 4ac}}{2a}', '\int_0^1 x^2\,dx'); iterations = @{ parse = 10000; layout = 5000; draw = 2000; editor = 2000 }; packageFile = $package.Name; packageSha256 = $packageHash }
 Set-Content -Path $Output -Value ($meta | ConvertTo-Json -Compress) -Encoding utf8
 function Invoke-Capture($library, $mode, $sample) {
-    $lines = & dotnet run --project $project -c Release --no-build -- $mode 2>&1
+    $lines = & dotnet run --project $project $productProperty -c Release --no-build -- $mode 2>&1
     if ($LASTEXITCODE -ne 0) { throw "capture failed: $library $mode" }
     $expectedNames = if ($mode -like 'cold-*') { @("$library-cold-render") } else { @("$library-parse-batch", "$library-layout-batch", "$library-draw-batch", "$library-editor-x2") }
     $rows = @()
