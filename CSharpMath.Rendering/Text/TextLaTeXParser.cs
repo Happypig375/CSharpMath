@@ -14,17 +14,23 @@ namespace CSharpMath.Rendering.Text {
     // categories supplied by .NET, while retaining the break opportunities for
     // CJK ideographs (which are intentionally breakable between characters).
     static void CoalesceUnicodeWordBreaks(string text, List<BreakAtInfo> breakList) {
-      for (int i = breakList.Count - 1; i >= 0; i--) {
-        int boundary = breakList[i].breakAt;
-        if (boundary <= 0 || boundary >= text.Length || !KeepUnicodeSequenceTogether(text, boundary))
-          continue;
-        breakList.RemoveAt(i);
+      int start = 0, kept = 0;
+      bool afterBackslash = false;
+      for (int i = 0; i < breakList.Count; i++) {
+        var item = breakList[i];
+        int end = item.breakAt;
+        // The parser reads the original token after a backslash as the command.
+        // Keep its end even when the next token starts with a Unicode letter.
+        if (afterBackslash || end <= 0 || end >= text.Length || !KeepUnicodeSequenceTogether(text, end))
+          breakList[kept++] = item;
+        afterBackslash = !afterBackslash && end == start + 1 && text[start] == '\\';
+        start = end;
       }
+      breakList.RemoveRange(kept, breakList.Count - kept);
     }
 
     static bool KeepUnicodeSequenceTogether(string text, int boundary) {
-      int beforeAt = boundary - 1;
-      if (char.IsLowSurrogate(text[beforeAt])) beforeAt--;
+      int beforeAt = FindPreviousScalarStart(text, boundary - 1);
       int afterAt = boundary;
       // Typography never intentionally breaks a surrogate pair.  Do not
       // manufacture a new decision at a half-surrogate if malformed input does
@@ -47,7 +53,7 @@ namespace CSharpMath.Rendering.Text {
     }
 
     static int FindPreviousScalarStart(string text, int scalarEndAt) =>
-      scalarEndAt > 0 && char.IsLowSurrogate(text[scalarEndAt])
+      scalarEndAt > 0 && char.IsSurrogatePair(text[scalarEndAt - 1], text[scalarEndAt])
         ? scalarEndAt - 1 : scalarEndAt;
 
     static int FindBaseScalarStart(string text, int scalarAt) {

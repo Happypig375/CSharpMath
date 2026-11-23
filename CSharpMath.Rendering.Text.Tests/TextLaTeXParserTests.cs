@@ -59,6 +59,19 @@ namespace CSharpMath.Rendering.Text.Tests {
     }
 
     [Fact]
+    public void UnicodeTextBeginsAfterTheCommandName() {
+      Assert.Equal(new TextAtom.Style(new TextAtom.Text("Ж"), Atom.FontStyle.Bold), Parse(@"\textbfЖ"));
+      Assert.Equal(new TextAtom.List(new TextAtom[] { new TextAtom.Text("<"), new TextAtom.Text("Ж") }),
+        Parse(@"\textlessЖ"));
+    }
+
+    [Fact]
+    public void LeadingLoneLowSurrogateRemainsText() {
+      const string text = "\uDC00a";
+      Assert.Equal(text, TextLaTeXParser.TextAtomToLaTeX(Parse(text)).ToString());
+    }
+
+    [Fact]
     public void CjkCharactersRemainIndividuallyBreakable() {
       Assert.Equal(
         new TextAtom.List(new TextAtom[] {
