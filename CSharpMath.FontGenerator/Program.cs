@@ -103,13 +103,15 @@ internal static class Program {
   private static readonly string[] Bundled = { "latinmodern-math.otf", "AMS-Capital-Blackboard-Bold.otf", "cyrillic-modern-nmr10.otf" };
 
   public static int Main(string[] args) {
-    if ((args.Length is < 3 or > 4) || (!string.Equals(args[0], "generate", StringComparison.OrdinalIgnoreCase) && !string.Equals(args[0], "verify", StringComparison.OrdinalIgnoreCase))) {
-      Console.Error.WriteLine("Usage: CSharpMath.FontGenerator generate <reference-font-directory> <output-directory> [prototype-directory]");
+    bool verify = args.Length == 3 && string.Equals(args[0], "verify", StringComparison.OrdinalIgnoreCase);
+    bool generate = args.Length is 3 or 4 && string.Equals(args[0], "generate", StringComparison.OrdinalIgnoreCase);
+    if (!verify && !generate) {
+      Console.Error.WriteLine("Usage: CSharpMath.FontGenerator generate <reference-font-directory> <output-directory> [prototype-directory] | verify <reference-font-directory> <output-directory>");
       return 2;
     }
     var sourceDirectory = Path.GetFullPath(args[1]);
     var outputDirectory = Path.GetFullPath(args[2]);
-    if (string.Equals(args[0], "verify", StringComparison.OrdinalIgnoreCase)) return Verify(sourceDirectory, outputDirectory);
+    if (verify) return Verify(sourceDirectory, outputDirectory);
     Generate(sourceDirectory, outputDirectory, args.Length == 4 ? Path.GetFullPath(args[3]) : null);
     return 0;
   }
@@ -143,7 +145,7 @@ internal static class Program {
       entries.Add(new ManifestEntry(fileName, outputName, Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant(), bytes.Length, new FileInfo(Path.Combine(outputDirectory, outputName)).Length));
     }
     var manifest = new { schema = FontBlob.Schema, byteOrder = "little", format = "CSMF1", shaping = "GSUB/GPOS intentionally excluded; CSharpMath does not shape text with them.", fonts = entries };
-    File.WriteAllText(Path.Combine(outputDirectory, "manifest.json"), JsonSerializer.Serialize(manifest, new JsonSerializerOptions { WriteIndented = true }) + Environment.NewLine, new UTF8Encoding(false));
+    File.WriteAllText(Path.Combine(outputDirectory, "manifest.json"), JsonSerializer.Serialize(manifest, new JsonSerializerOptions { WriteIndented = true }).Replace("\r\n", "\n") + "\n", new UTF8Encoding(false));
     if (prototypeDirectory != null) WritePrototype(outputDirectory, prototypeDirectory, entries);
   }
 
@@ -153,9 +155,9 @@ internal static class Program {
     foreach (var entry in entries) {
       var bytes = File.ReadAllBytes(Path.Combine(outputDirectory, entry.Output));
       sb.Append("    internal static readonly byte[] ").Append(Path.GetFileNameWithoutExtension(entry.Output).Replace('-', '_')).Append(" = new byte[] { ");
-      sb.Append(string.Join(", ", bytes.Select(b => b.ToString()))).AppendLine(" };\n");
+      sb.Append(string.Join(", ", bytes.Select(b => b.ToString()))).Append(" };\n\n");
     }
-    sb.AppendLine("}");
+    sb.Append("}\n");
     File.WriteAllText(Path.Combine(prototypeDirectory, "BundledFontPrototype.g.cs"), sb.ToString(), new UTF8Encoding(false));
   }
 

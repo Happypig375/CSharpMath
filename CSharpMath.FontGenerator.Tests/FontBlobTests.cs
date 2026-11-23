@@ -29,6 +29,24 @@ public sealed class FontBlobTests {
   }
 
   [Fact]
+  public void VerifyRejectsUnusedPrototypeArgument() {
+    Assert.Equal(2, Program.Main(new[] { "verify", Sources, Generated, "unused" }));
+  }
+
+  [Fact]
+  public void GeneratedTextUsesLineFeeds() {
+    using var output = new TempDirectory();
+    using var prototype = new TempDirectory();
+    Assert.Equal(0, Program.Main(new[] { "generate", Sources, output.Path, prototype.Path }));
+    var manifest = File.ReadAllBytes(Path.Combine(output.Path, "manifest.json"));
+    Assert.DoesNotContain((byte)'\r', manifest);
+    Assert.Equal(File.ReadAllBytes(Path.Combine(Generated, "manifest.json")), manifest);
+    var source = File.ReadAllBytes(Path.Combine(prototype.Path, "BundledFontPrototype.g.cs"));
+    Assert.DoesNotContain((byte)'\r', source);
+    Assert.Equal((byte)'\n', source[^1]);
+  }
+
+  [Fact]
   public void HeaderFailuresAreRejected() {
     var source = Path.Combine(Sources, "latinmodern-math.otf");
     var original = File.ReadAllBytes(Path.Combine(Generated, "latinmodern-math.csmfont"));
