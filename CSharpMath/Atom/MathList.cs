@@ -61,10 +61,10 @@ namespace CSharpMath.Atom {
             newNode.IndexRange = new Range(prevNode is { } prev ? prev.IndexRange.Location + prev.IndexRange.Length : 0, 1);
           switch (prevDisplayedIndex == -1 ? null : newList[prevDisplayedIndex], newNode) {
             // NOTE: The left pattern does not include UnaryOperator. Just try "1+++2" and "1++++2" in any LaTeX rendering engine.
-            case (null or BinaryOperator or Relation or Open or Punctuation or LargeOperator, BinaryOperator b):
+            case (null or BinaryOperator or Relation or MathRel or Open or Punctuation or LargeOperator, BinaryOperator b):
               newNode = b.ToUnaryOperator();
               break;
-            case (BinaryOperator b, Relation or Punctuation or Close):
+            case (BinaryOperator b, Relation or MathRel or Punctuation or Close):
               newList[prevDisplayedIndex] = b.ToUnaryOperator();
               break;
           }

@@ -23,6 +23,12 @@ namespace CSharpMath.Core.DisplayTests {
       Approximately.Equal(-3 * _context.MathTable.MuUnit(styleFont), joined.Width - plain.Width);
     }
 
+    [Theory]
+    [InlineData("a=-b", @"a\mathrel{=}-b")]
+    [InlineData("a+=b", @"a+\mathrel{=}b")]
+    public void MathRelNormalizesAdjacentBinaryOperators(string ordinary, string wrapped) =>
+      Approximately.Equal(ParseLaTeXToDisplay(ordinary).Width, ParseLaTeXToDisplay(wrapped).Width);
+
     [Fact]
     public void MathRelGetsRelationSpacingExactlyOnceAndKeepsInternalLayout() {
       var ordinary = Typesetter.CreateLine(AtomTests.LaTeXParserTest.ParseLaTeX("a=b"), _font, _context, LineStyle.Display);
