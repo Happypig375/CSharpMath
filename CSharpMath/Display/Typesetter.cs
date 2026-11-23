@@ -1272,12 +1272,13 @@ namespace CSharpMath.Display {
       foreach (var row in table.Cells) {
         var colDispalys = new List<ListDisplay<TFont, TGlyph>>();
         r.Add(colDispalys);
+        var column = 0;
         for (int i = 0; i < row.Count; i++) {
           var disp = CreateLine(row[i], _font, _context, cellStyle, false);
-          var column = row.Take(i).Select((_, j) => table.GetColumnSpan(r.Count - 1, j)).Sum();
           var span = table.GetColumnSpan(r.Count - 1, i);
           if (span == 1) columnWidths[column] = Math.Max(disp.Width, columnWidths[column]);
           colDispalys.Add(disp);
+          column += span;
         }
       }
       // A spanning cell may be the only contributor to one or more logical
@@ -1307,6 +1308,27 @@ namespace CSharpMath.Display {
     private float CellStyleFontSize(Table table) =>
       _context.MathTable.GetStyleSize(_CellStyleForTable(table), _font);
 
+    private static int[] VerticalRulesForRow(Table table, int row, int columns) {
+      var counts = new int[columns + 1];
+      table.VerticalLines.CopyTo(0, counts, 0, Math.Min(counts.Length, table.VerticalLines.Count));
+      int column = 0, previousTrailingRules = 0;
+      for (int cell = 0; cell < table.Cells[row].Count; cell++) {
+        int span = table.GetColumnSpan(row, cell);
+        var spec = table.GetSpanSpecification(row, cell);
+        if (spec != null || span > 1) {
+          spec ??= string.Empty;
+          var leading = spec.TakeWhile(c => c == '|').Count();
+          var trailing = spec.Reverse().TakeWhile(c => c == '|').Count();
+          counts[column] = Math.Max(previousTrailingRules, leading);
+          Array.Clear(counts, column + 1, span - 1);
+          counts[column + span] = trailing;
+          previousTrailingRules = trailing;
+        } else previousTrailingRules = 0;
+        column += span;
+      }
+      return counts;
+    }
+
     private IDisplay<TFont, TGlyph> MakeTable(Table table) {
       int nColumns = table.NColumns;
       if (nColumns == 0 || table.NRows == 0) {
@@ -1315,7 +1337,8 @@ namespace CSharpMath.Display {
         return emptyTable;
       }
       bool hasRules =
-        table.VerticalLines.Any(v => v > 0) || table.HorizontalLines.Any(h => h > 0);
+        table.VerticalLines.Any(v => v > 0) || table.HorizontalLines.Any(h => h > 0) ||
+        table.SpanSpecifications.Any(row => row.Any(spec => spec?.Contains("|") == true));
 
       var columnWidths = new float[nColumns];
       var displays = TypesetCells(table, columnWidths);
@@ -1342,21 +1365,8 @@ namespace CSharpMath.Display {
       float padding = rulePaddingMultiplier * _styleFont.PointSize;
       float ruleGap = ruleGapMultiplier * _styleFont.PointSize;
       float cellStyleMuUnit = CellStyleFontSize(table) / 18f;
-      var suppressedBoundaries = new HashSet<int>();
-      for (var row = 0; row < table.Cells.Count; row++) {
-        var column = 0;
-        for (var cell = 0; cell < table.Cells[row].Count; cell++) {
-          var span = table.GetColumnSpan(row, cell);
-          if (span > 1) {
-            var specification = table.SpanSpecifications.Count > row && table.SpanSpecifications[row].Count > cell
-              ? table.SpanSpecifications[row][cell] ?? "" : "";
-            for (var boundary = column + 1; boundary < column + span; boundary++) suppressedBoundaries.Add(boundary);
-            if (!specification.StartsWith("|", StringComparison.Ordinal)) suppressedBoundaries.Add(column);
-            if (!specification.EndsWith("|", StringComparison.Ordinal)) suppressedBoundaries.Add(column + span);
-          }
-          column += span;
-        }
-      }
+      var rowRules = Enumerable.Range(0, table.NRows)
+        .Select(row => VerticalRulesForRow(table, row, nColumns)).ToArray();
 
       columnOffsets = new float[nColumns];
       verticalRuleXs = new List<List<float>>();
@@ -1364,7 +1374,7 @@ namespace CSharpMath.Display {
       for (int boundary = 0; boundary <= nColumns; boundary++) {
         float gapBase = boundary == 0 || boundary == nColumns
           ? 0 : table.InterColumnSpacing * cellStyleMuUnit;
-        int count = suppressedBoundaries.Contains(boundary) ? 0 : boundary < table.VerticalLines.Count ? table.VerticalLines[boundary] : 0;
+        int count = rowRules.Max(counts => counts[boundary]);
         var ruleXs = new List<float>();
         if (count > 0) {
           // No padding outside the outermost rules so they sit flush at the box edges.
@@ -1406,29 +1416,33 @@ namespace CSharpMath.Display {
       float frameTop = contentTop + padding;
       float frameBot = contentBot - padding;
 
+      int nRows = table.NRows;
+      var rowEdges = new float[nRows + 1];
+      rowEdges[0] = frameTop;
+      rowEdges[nRows] = frameBot;
+      for (int row = 1; row < nRows; row++) {
+        var above = ruledRowDisplays[row - 1];
+        var below = ruledRowDisplays[row];
+        rowEdges[row] = (above.Position.Y - above.Descent + below.Position.Y + below.Ascent) / 2;
+      }
       for (int boundary = 0; boundary < verticalRuleXs.Count; boundary++) {
-        foreach (var ruleX in verticalRuleXs[boundary]) {
-          ruledRowDisplays.Add(new RuleDisplay<TFont, TGlyph>(
-            new PointF(ruleX, frameBot), frameBot < frameTop ? frameTop - frameBot : 0,
-            thickness, vertical: true, Range.NotFound));
+        for (int stroke = 0; stroke < verticalRuleXs[boundary].Count; stroke++) {
+          int row = 0;
+          while (row < nRows) {
+            if (rowRules[row][boundary] <= stroke) { row++; continue; }
+            var top = rowEdges[row];
+            do row++; while (row < nRows && rowRules[row][boundary] > stroke);
+            var bottom = rowEdges[row];
+            ruledRowDisplays.Add(new RuleDisplay<TFont, TGlyph>(
+              new PointF(verticalRuleXs[boundary][stroke], bottom), Math.Max(0, top - bottom),
+              thickness, vertical: true, Range.NotFound));
+          }
         }
       }
-      int nRows = table.NRows;
       for (int b = 0; b < table.HorizontalLines.Count && b <= nRows; b++) {
         int count = table.HorizontalLines[b];
         if (count == 0) continue;
-        float y0;
-        if (b == 0) {
-          y0 = frameTop;
-        } else if (b >= nRows) {
-          y0 = frameBot;
-        } else {
-          var above = ruledRowDisplays[b - 1];   // upper row (higher y)
-          var below = ruledRowDisplays[b];       // lower row
-          float gapBot = above.Position.Y - above.Descent;
-          float gapTop = below.Position.Y + below.Ascent;
-          y0 = (gapTop + gapBot) / 2;
-        }
+        float y0 = rowEdges[b];
         for (int k = 0; k < count; k++) {
           float yk = b switch {
             0 => y0 - k * (thickness + ruleGap),           // stack downward
@@ -1453,8 +1467,8 @@ namespace CSharpMath.Display {
       for (int i = 0; i < row.Count; i++) {
         var entry = row[i];
         var span = table.GetColumnSpan(rowIndex, i);
-        var width = Enumerable.Range(column, span).Sum(c => columnWidths[c])
-          + (span - 1) * table.InterColumnSpacing * CellStyleFontSize(table) / 18f;
+        var lastColumn = column + span - 1;
+        var width = columnOffsets[lastColumn] + columnWidths[lastColumn] - columnOffsets[column];
         var alignment = table.GetSpanAlignment(rowIndex, i) ?? table.GetAlignment(column);
         var cellPosition = columnOffsets[column];
         switch (alignment) {

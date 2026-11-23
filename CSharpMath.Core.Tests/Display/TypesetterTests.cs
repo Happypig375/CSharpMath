@@ -28,6 +28,21 @@ namespace CSharpMath.Core.DisplayTests {
       public override (System.Collections.Generic.IEnumerable<TGlyph> variants, int count)
         GetHorizontalVariantsForGlyph(TGlyph rawGlyph) => (System.Array.Empty<TGlyph>(), 0);
     }
+    [Theory]
+    [InlineData(@"\begin{array}{c|c}\multicolumn{2}{c}{x}\\a&b\end{array}", 1, false)]
+    [InlineData(@"\begin{array}{cc}\multicolumn{2}{|c||}{x}\\a&b\end{array}", 3, true)]
+    public void MulticolumnRulesCoverOnlyTheirOwnRows(string latex, int ruleCount, bool topRow) {
+      var table = Assert.IsType<ListDisplay<TFont, TGlyph>>(Assert.Single(ParseLaTeXToDisplay(latex).Displays));
+      var rows = table.Displays.OfType<ListDisplay<TFont, TGlyph>>().ToArray();
+      var rules = table.Displays.OfType<RuleDisplay<TFont, TGlyph>>().ToArray();
+      Assert.Equal(ruleCount, rules.Length);
+      Assert.All(rules, rule => {
+        Assert.True(rule.Ascent > 0);
+        if (topRow) Assert.True(rule.Position.Y > rows[1].Position.Y);
+        else Assert.True(rule.Position.Y + rule.Ascent < rows[0].Position.Y);
+      });
+    }
+
     internal static ListDisplay<TFont, TGlyph> ParseLaTeXToDisplay(string latex) =>
       Typesetter.CreateLine(AtomTests.LaTeXParserTest.ParseLaTeX(latex), _font, _context, LineStyle.Display);
 

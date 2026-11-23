@@ -204,6 +204,7 @@ namespace CSharpMath.Atom {
           var environment = parser.Environments.PeekOrDefault() as LaTeXParser.TableEnvironment;
           if (environment?.Name is not ("array" or "matrix" or "pmatrix" or "bmatrix" or "Bmatrix" or "vmatrix" or "Vmatrix"))
             return @"\multicolumn is only valid inside an array or matrix";
+          environment.MulticolumnCommandsInCell++;
           var (countText, countError) = parser.ReadRawArgument();
           if (countError != null || !int.TryParse(countText, out var count) || count < 1)
             return @"\multicolumn requires a positive span count";

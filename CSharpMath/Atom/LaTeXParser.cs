@@ -26,6 +26,7 @@ namespace CSharpMath.Atom {
       /// <summary>Per-row-boundary \hline counts (array only), length rows+1.</summary>
       public List<int> HorizontalLines { get; } = new List<int>();
       public string? ArrayAlignments { get; set; }
+      internal int MulticolumnCommandsInCell { get; set; }
     }
     public class InnerEnvironment : IEnvironment {
       public Boundary? RightBoundary { get; set; }
@@ -770,8 +771,12 @@ namespace CSharpMath.Atom {
         } else {
           UndoTo(saveChar);
         }
+        environment.MulticolumnCommandsInCell = 0;
         var (list, error) = BuildInternal(false, stopChar);
         if (error != null) return error;
+        if (environment.MulticolumnCommandsInCell != 0 &&
+            (environment.MulticolumnCommandsInCell != 1 || list.Count != 1 || list[0] is not MulticolumnAtom))
+          return @"\multicolumn must occupy the entire cell";
         rows[currentRow].Add(list);
         currentColumn++;
         if (environment.NRows > currentRow) {
@@ -1297,14 +1302,19 @@ namespace CSharpMath.Atom {
                 for (int k = table.HorizontalLines[i]; k > 0; k--)
                   builder.Append(@"\hline ");
               }
+              var logicalColumn = 0;
               for (int j = 0; j < row.Count; j++) {
                 var cell = row[j];
                 var span = table.GetColumnSpan(i, j);
-                if (span > 1) {
-                  var spec = table.SpanSpecifications.Count > i && table.SpanSpecifications[i].Count > j
-                    ? table.SpanSpecifications[i][j] : null;
+                var spec = table.GetSpanSpecification(i, j);
+                var multicolumn = span > 1 || spec != null;
+                if (multicolumn) {
                   builder.Append(@"\multicolumn{").Append(span).Append("}{")
-                    .Append(spec ?? table.GetAlignment(j).ToString().ToLowerInvariant()).Append("}{");
+                    .Append(spec ?? ((table.GetSpanAlignment(i, j) ?? table.GetAlignment(logicalColumn)) switch {
+                      ColumnAlignment.Left => "l",
+                      ColumnAlignment.Right => "r",
+                      _ => "c"
+                    })).Append("}{");
                 }
                 if (table.Environment == "matrix"
                     && cell.Count >= 1
@@ -1334,7 +1344,8 @@ namespace CSharpMath.Atom {
                   cell = cell.Slice(1, cell.Count - 1);
                 }
                 MathListToLaTeX(cell, builder, currentFontStyle);
-                if (span > 1) builder.Append('}');
+                if (multicolumn) builder.Append('}');
+                logicalColumn += span;
                 if (j < row.Count - 1) {
                   builder.Append('&');
                 }

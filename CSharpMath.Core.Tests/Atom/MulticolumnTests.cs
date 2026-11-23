@@ -34,6 +34,21 @@ namespace CSharpMath.Core.AtomTests {
     }
 
     [Fact]
+    public void OneColumnOverrideRoundTrips() {
+      var table = Parse(@"\begin{array}{c}\multicolumn{1}{|r|}{a}\end{array}");
+      var serialized = LaTeXParser.MathListToLaTeX(new MathList(table)).ToString();
+      Assert.Equal(table, Parse(serialized));
+    }
+
+    [Theory]
+    [InlineData(@"a\multicolumn{1}{c}{b}")]
+    [InlineData(@"\multicolumn{1}{c}{a}b")]
+    [InlineData(@"\frac{\multicolumn{1}{c}{a}}{b}")]
+    [InlineData(@"\multicolumn{1}{c}{\multicolumn{1}{c}{a}}")]
+    public void RejectsMulticolumnOutsideWholeCell(string cell) =>
+      Assert.NotNull(LaTeXParser.MathListFromLaTeX(@"\begin{array}{c}" + cell + @"\end{array}").Error);
+
+    [Fact]
     public void MatrixSupportsSpans() {
       var result = LaTeXParser.MathListFromLaTeX(@"\begin{matrix}\multicolumn{2}{c}{x}&y\\z&w\end{matrix}");
       Assert.Null(result.Error);

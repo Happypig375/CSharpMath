@@ -118,6 +118,8 @@ namespace CSharpMath.Atom.Atoms {
       ? ColumnSpans[row][column] : 1;
     public ColumnAlignment? GetSpanAlignment(int row, int column) => row >= 0 && column >= 0 && row < SpanAlignments.Count && column < SpanAlignments[row].Count
       ? SpanAlignments[row][column] : null;
+    internal string? GetSpanSpecification(int row, int cell) =>
+      row < SpanSpecifications.Count && cell < SpanSpecifications[row].Count ? SpanSpecifications[row][cell] : null;
     internal void SetColumnSpan(int row, int column, int span, ColumnAlignment alignment, string specification = "") {
       if (span < 1) throw new System.ArgumentOutOfRangeException(nameof(span));
       while (ColumnSpans.Count <= row) ColumnSpans.Add(new List<int>());
