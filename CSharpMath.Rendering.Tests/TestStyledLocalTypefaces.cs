@@ -122,6 +122,17 @@ namespace CSharpMath.Rendering.Tests {
       Assert.Same(bold, glyph.Typeface);
     }
     [Fact]
+    public void HeldTypefaceSequenceObservesLaterCollectionChanges() {
+      var face = Read("Arimo-Regular.ttf");
+      var local = new List<Typeface>();
+      var faces = new Fonts(local, 20).Typefaces;
+      local.Add(face);
+      Assert.Contains(face, faces);
+      local.Clear();
+      Assert.DoesNotContain(face, faces);
+    }
+
+    [Fact]
     public void ReflectsMutableCollectionTypefaceAdditionsAndRemovals() {
       var regular = Read("Arimo-Regular.ttf");
       var bold = Read("Arimo-Bold.ttf");

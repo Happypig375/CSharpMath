@@ -54,7 +54,7 @@ namespace CSharpMath.Rendering.BackEnd {
     }
     public static readonly Typefaces GlobalTypefaces = GetGlobalTypefaces();
     public float PointSize { get; }
-    public IEnumerable<Typeface> Typefaces => GetTypefacesSnapshot();
+    public IEnumerable<Typeface> Typefaces => localTypefaceSource.Concat(GlobalTypefaces);
     public Typeface MathTypeface { get; }
     public Typography.OpenFont.MathGlyphs.MathConstants MathConsts { get; }
     public IEnumerator<Typeface> GetEnumerator() => GetTypefacesSnapshot().AsEnumerable().GetEnumerator();
