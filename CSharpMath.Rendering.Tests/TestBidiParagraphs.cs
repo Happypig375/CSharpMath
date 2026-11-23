@@ -46,6 +46,12 @@ namespace CSharpMath.Rendering.Tests {
       Assert.Equal(end, cursor);
     }
 
+    [Fact]
+    public void AdlamLettersSelectRightToLeftAndKeepSurrogatePairsTogether() {
+      AssertRuns(new BidiParagraph("\U0001E900\U0001E901"), 1, (0, 4, 1));
+      AssertRuns(new BidiParagraph("a\U0001E944"), 0, (0, 3, 0));
+    }
+
     static void AssertNotInsideSurrogatePair(BidiParagraph paragraph, int globalBoundary) {
       var paragraphEnd = paragraph.LogicalStart + paragraph.Length;
       if (globalBoundary <= paragraph.LogicalStart || globalBoundary >= paragraphEnd)

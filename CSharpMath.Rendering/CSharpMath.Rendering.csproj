@@ -30,7 +30,7 @@
   <ItemGroup Label="Typography">
     <Compile Include="..\Typography\Typography.OpenFont\**\*.cs" Exclude="..\Typography\Typography.OpenFont\**\AssemblyInfo.cs" Link="Typography\OpenFont\%(RecursiveDir)%(Filename)%(Extension)" />
     <Compile Include="..\Typography\Typography.GlyphLayout\**\*.cs" Exclude="..\Typography\Typography.GlyphLayout\**\AssemblyInfo.cs" Link="Typography\TextLayout\%(RecursiveDir)%(Filename)%(Extension)" />
-    <Compile Include="..\Typography\Typography.TextBreak\Typography.TextBreak\**\*.cs" Exclude="..\Typography\Typography.TextBreak\Typography.TextBreak\**\AssemblyInfo.cs" Link="Typography\TextBreak\%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="..\Typography\Typography.TextBreak\Typography.TextBreak\**\*.cs" Exclude="..\Typography\Typography.TextBreak\Typography.TextBreak\**\AssemblyInfo.cs;..\Typography\Typography.TextBreak\Typography.TextBreak\SheenBidi\Data\CharTypeLookup.cs" Link="Typography\TextBreak\%(RecursiveDir)%(Filename)%(Extension)" />
     <Compile Include="..\Typography\PixelFarm.Typography\3_Typography_Contours\GlyphOutlineBuilderBase.cs" Link="Typography\%(RecursiveDir)%(Filename)%(Extension)" />
   </ItemGroup>
   <Target Name="CheckTypographySubmodule" BeforeTargets="BeforeBuild">
