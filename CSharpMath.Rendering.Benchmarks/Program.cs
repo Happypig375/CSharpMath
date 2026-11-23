@@ -10,6 +10,9 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Running;
+using CSharpMath.Display.Displays;
+using CSharpMath.Rendering.BackEnd;
+using CSharpMath.Rendering.Text;
 using CSharpMath.SkiaSharp;
 using Typography.OpenFont;
 
@@ -60,7 +63,7 @@ namespace CSharpMath.Rendering.Benchmarks {
 #error Unsupported build configuration: define DEBUG or RELEASE.
 #endif
     const string Math = @"\frac{\alpha+\beta}{\sqrt{x^2+y^2}}";
-    const string Mixed = @"Area: \frac{\pi r^2}{2}";
+    const string Mixed = @"Area: $\frac{\pi r^2}{2}$";
     static readonly string[] Bundled = { "latinmodern-math.otf", "AMS-Capital-Blackboard-Bold.otf", "cyrillic-modern-nmr10.otf" };
     static readonly JsonSerializerOptions Json = new() { WriteIndented = true, PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
     public static void Run(string[] args) {
@@ -79,18 +82,112 @@ namespace CSharpMath.Rendering.Benchmarks {
     public static void Worker(string scenario, string[] args) {
       try {
         int iterations = GetInt(args, "--font-profile-iterations", 10), batches = GetInt(args, "--font-profile-batches", 3); var result = new Sample { Scenario = scenario }; long before = GC.GetTotalAllocatedBytes(true), retainedBefore = GC.GetTotalMemory(true); int[] gcBefore = { GC.CollectionCount(0), GC.CollectionCount(1), GC.CollectionCount(2) }; var timer = Stopwatch.StartNew();
-        if (scenario.StartsWith("parse:", StringComparison.Ordinal)) result.Font = Describe(scenario[6..], ReadBundled(scenario[6..]), "embedded Reference Fonts"); else if (scenario.StartsWith("font:", StringComparison.Ordinal)) { byte[] face = ReadBundled(scenario[5..]); result.Font = Describe(scenario[5..], face, "embedded Reference Fonts"); result.ExercisedPaths.Add("LocalTypeface:" + scenario[5..]); result.GlyphCorpus = GlyphCorpusFor(face, scenario[5..]); result.GlyphsAvailable = HasCorpusGlyphs(face, result.GlyphCorpus); for (int i = 0; i < iterations; i++) RenderMath(result.GlyphCorpus, face); } else if (scenario == "first-math") { result.ExercisedPaths.Add("global math parse/layout/draw"); RenderMath(Math); } else if (scenario == "first-mixed") { result.ExercisedPaths.Add("TextPainter text+math layout/draw"); RenderText(Mixed); } else if (scenario == "global-batch" || scenario == "custom-comic-neue") { byte[] custom = ReadCustom(); var faces = Bundled.Select(ReadBundled).Concat(new[] { custom }).ToArray(); result.SwitchingSequence = Bundled.Concat(new[] { "ComicNeue_Bold.otf" }).ToArray(); var corpora = faces.Select((face, i) => { string corpus = GlyphCorpusFor(face, result.SwitchingSequence[i]); return new FaceRenderEvidence { Face = result.SwitchingSequence[i], RequestedCorpus = corpus, CmapGlyphIndices = GlyphIndicesFor(face, corpus), CmapValidated = HasCorpusGlyphs(face, corpus), LocalTypeface = true }; }).ToArray(); if (scenario == "custom-comic-neue") { result.GlyphCorpus = corpora[^1].RequestedCorpus; result.GlyphsAvailable = corpora[^1].CmapValidated; } int iterationsToRun = System.Math.Max(iterations, faces.Length); for (int batch = 0; batch < batches; batch++) { long batchBefore = GC.GetTotalMemory(true); for (int i = 0; i < iterationsToRun; i++) { int selected = i % faces.Length; var evidence = corpora[selected]; RenderMath(evidence.RequestedCorpus, faces[selected]); RenderText(Mixed); evidence.DrawSucceeded = true; result.SelectedFaces.Add(evidence.Face); if (!result.GlobalFaces.Any(f => f.Face == evidence.Face)) result.GlobalFaces.Add(evidence); } GC.Collect(); GC.WaitForPendingFinalizers(); GC.Collect(); result.Batches.Add(new BatchResult { Number = batch, RetainedManagedBytesAfterGc = GC.GetTotalMemory(true) - batchBefore }); } result.ExercisedPaths.Add("repeated local-face switching with cmap-validated corpora"); } else throw new ArgumentException("unknown profile worker scenario: " + scenario);
+        if (scenario.StartsWith("parse:", StringComparison.Ordinal)) {
+          var name = scenario[6..];
+          result.Font = Describe(name, ReadBundled(name), "embedded Reference Fonts");
+        } else if (scenario.StartsWith("font:", StringComparison.Ordinal)) {
+          var name = scenario[5..];
+          var face = ReadBundled(name);
+          result.Font = Describe(name, face, "embedded Reference Fonts");
+          result.ExercisedPaths.Add("LocalTypeface:" + name);
+          result.GlyphCorpus = GlyphCorpusFor(face, name);
+          result.GlyphsAvailable = HasCorpusGlyphs(face, result.GlyphCorpus);
+          for (int i = 0; i < iterations; i++) RenderLocalCorpus(result.GlyphCorpus, face);
+        } else if (scenario == "first-math") {
+          result.ExercisedPaths.Add("global math parse/layout/draw");
+          RenderMath(Math);
+        } else if (scenario == "first-mixed") {
+          result.ExercisedPaths.Add("TextPainter text+math layout/draw");
+          RenderMixedText(Mixed);
+        } else if (scenario == "global-batch" || scenario == "custom-comic-neue") {
+          RenderSwitchingBatches(result, iterations, batches);
+        } else {
+          throw new ArgumentException("unknown profile worker scenario: " + scenario);
+        }
         timer.Stop(); result.WallMilliseconds = timer.Elapsed.TotalMilliseconds; result.TotalManagedAllocatedBytes = GC.GetTotalAllocatedBytes(true) - before; result.RetainedManagedBytesAfterGc = GC.GetTotalMemory(true) - retainedBefore; result.GcCollections = new[] { GC.CollectionCount(0) - gcBefore[0], GC.CollectionCount(1) - gcBefore[1], GC.CollectionCount(2) - gcBefore[2] }; Console.Write(JsonSerializer.Serialize(result, Json));
       } catch (Exception ex) { Console.Write(JsonSerializer.Serialize(new Sample { Scenario = scenario, Errors = new List<string> { ex.ToString() } }, Json)); Environment.ExitCode = 1; }
     }
-    static void RenderMath(string latex, byte[]? custom = null) { MemoryStream? stream = null; Typeface[] faces = Array.Empty<Typeface>(); if (custom != null) { var face = ReadTypeface(custom, out stream); faces = new[] { face }; } using (stream) { var painter = new MathPainter { LaTeX = latex, LocalTypefaces = faces }; using (painter.DrawAsStream()) { } } }
-    static void RenderText(string latex) { var painter = new TextPainter { LaTeX = latex }; using (painter.DrawAsStream()) { } }
+    static void RenderSwitchingBatches(Sample result, int iterations, int batches) {
+      var faces = Bundled.Select(ReadBundled).Append(ReadCustom()).ToArray();
+      result.SwitchingSequence = Bundled.Append("ComicNeue_Bold.otf").ToArray();
+      var corpora = faces.Select((face, i) => {
+        var name = result.SwitchingSequence[i];
+        var corpus = GlyphCorpusFor(face, name);
+        return new FaceRenderEvidence {
+          Face = name, RequestedCorpus = corpus, CmapGlyphIndices = GlyphIndicesFor(face, corpus),
+          CmapValidated = HasCorpusGlyphs(face, corpus)
+        };
+      }).ToArray();
+      if (result.Scenario == "custom-comic-neue") {
+        result.GlyphCorpus = corpora[^1].RequestedCorpus;
+        result.GlyphsAvailable = corpora[^1].CmapValidated;
+      }
+
+      int iterationsToRun = System.Math.Max(iterations, faces.Length);
+      for (int batch = 0; batch < batches; batch++) {
+        long batchBefore = GC.GetTotalMemory(true);
+        for (int i = 0; i < iterationsToRun; i++) {
+          int selected = i % faces.Length;
+          var evidence = corpora[selected];
+          RenderLocalCorpus(evidence.RequestedCorpus, faces[selected]);
+          evidence.LocalTypeface = true;
+          RenderMixedText(Mixed);
+          evidence.DrawSucceeded = true;
+          result.SelectedFaces.Add(evidence.Face);
+          if (!result.GlobalFaces.Any(f => f.Face == evidence.Face)) result.GlobalFaces.Add(evidence);
+        }
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
+        GC.Collect();
+        result.Batches.Add(new BatchResult {
+          Number = batch, RetainedManagedBytesAfterGc = GC.GetTotalMemory(true) - batchBefore
+        });
+      }
+      result.ExercisedPaths.Add("repeated local-face switching with cmap-validated corpora");
+    }
+
+    static void RenderMath(string latex) {
+      var painter = new MathPainter { LaTeX = latex };
+      if (painter.ErrorMessage != null || painter.Content == null)
+        throw new InvalidDataException("Invalid math corpus: " + painter.ErrorMessage);
+      using var image = painter.DrawAsStream() ?? throw new InvalidDataException("Math render failed.");
+    }
+
+    static void RenderMixedText(string latex) {
+      var painter = new TextPainter { LaTeX = latex };
+      if (painter.ErrorMessage != null || painter.Content == null)
+        throw new InvalidDataException("Invalid text corpus: " + painter.ErrorMessage);
+      if (painter.Content is not TextAtom.List list || !list.Content.OfType<TextAtom.Text>().Any() ||
+          !list.Content.OfType<TextAtom.Math>().Any(math => !math.DisplayStyle))
+        throw new InvalidDataException("The mixed corpus must contain text and inline math.");
+      using var image = painter.DrawAsStream() ?? throw new InvalidDataException("Text render failed.");
+    }
+
+    static void RenderLocalCorpus(string corpus, byte[] fontBytes) {
+      using var stream = new MemoryStream(fontBytes, writable: false);
+      var face = new OpenFontReader().Read(stream) ?? throw new InvalidDataException("Local font could not be parsed.");
+      var painter = new TextPainter { LocalTypefaces = new[] { face }, LaTeX = corpus };
+      if (painter.ErrorMessage != null || painter.Content == null)
+        throw new InvalidDataException("Invalid local font corpus: " + painter.ErrorMessage);
+      using var image = painter.DrawAsStream() ?? throw new InvalidDataException("Local font render failed.");
+
+      // Spaces can be layout advances. Check every painted non-space glyph against the requested face and character.
+      var expected = corpus.EnumerateRunes().Where(r => !System.Text.Rune.IsWhiteSpace(r))
+        .Select(r => face.GetGlyphIndex(r.Value)).ToArray();
+      var runs = painter._relativeXCoordDisplay.Displays.OfType<TextRunDisplay<Fonts, BackEnd.Glyph>>();
+      var glyphs = runs.SelectMany(run => run.Run.GlyphInfos
+        .Zip(run.Run.Text.ToString().EnumerateRunes(), (info, rune) => (info.Glyph, rune)))
+        .Where(pair => !System.Text.Rune.IsWhiteSpace(pair.rune)).Select(pair => pair.Glyph).ToArray();
+      if (expected.Length == 0 || expected.Contains((ushort)0) ||
+          glyphs.Any(glyph => !ReferenceEquals(glyph.Typeface, face)) ||
+          !expected.SequenceEqual(glyphs.Select(glyph => glyph.Info.GlyphIndex)))
+        throw new InvalidDataException("Rendered glyphs did not match the local face and corpus: " + corpus);
+    }
     static string CorpusFor(string name) => name.StartsWith("cyrillic", StringComparison.Ordinal) ? "\u0410 \u0411 \u0412 \u0413 \u0414 \u0416 \u042F" : name.StartsWith("AMS-", StringComparison.Ordinal) ? FindAvailableGlyphs(ReadBundled(name), 7) : name.StartsWith("Comic", StringComparison.Ordinal) ? "Comic Neue sample" : Math;
     static string GlyphCorpusFor(byte[] bytes, string name) => name.StartsWith("AMS-", StringComparison.Ordinal) ? "ℂℍℕℙℚℝℤ" : name.StartsWith("cyrillic", StringComparison.Ordinal) ? "АБВГДЖЯ" : name.StartsWith("Comic", StringComparison.Ordinal) ? "Comic Neue sample" : "xy";
     static bool HasCorpusGlyphs(byte[] bytes, string corpus) { using var stream = new MemoryStream(bytes, false); var face = new OpenFontReader().Read(stream) ?? throw new InvalidDataException("font parse failed"); var codepoints = corpus.EnumerateRunes().Where(r => !char.IsWhiteSpace((char)r.Value)).Select(r => r.Value).Distinct(); return codepoints.All(cp => face.GetGlyphIndex(cp) != 0); }
     static ushort[] GlyphIndicesFor(byte[] bytes, string corpus) { using var stream = new MemoryStream(bytes, false); var face = new OpenFontReader().Read(stream) ?? throw new InvalidDataException("font parse failed"); return corpus.EnumerateRunes().Where(r => !char.IsWhiteSpace((char)r.Value)).Select(r => face.GetGlyphIndex(r.Value)).Distinct().ToArray(); }
     static string FindAvailableGlyphs(byte[] bytes, int count) { using var stream = new MemoryStream(bytes, false); var face = new OpenFontReader().Read(stream) ?? throw new InvalidDataException("font parse failed"); var chars = Enumerable.Range(0, 0x10000).Where(cp => !char.IsControl((char)cp) && !char.IsWhiteSpace((char)cp) && face.GetGlyphIndex(cp) != 0).Take(count).Select(cp => (char)cp).ToArray(); return chars.Length == count ? new string(chars) : throw new InvalidDataException("font lacks expected mapped glyphs"); }
-    static Typeface ReadTypeface(byte[] bytes, out MemoryStream stream) { stream = new MemoryStream(bytes, writable: false); return new OpenFontReader().Read(stream) ?? throw new InvalidDataException("custom font could not be parsed"); }
     static byte[] ReadCustom() { var p = FindCustomFont() ?? throw new FileNotFoundException("ComicNeue_Bold.otf"); return File.ReadAllBytes(p); }
     static FontInfo Describe(string name, byte[] bytes, string source) { using var stream = new MemoryStream(bytes, false); _ = new OpenFontReader().Read(stream) ?? throw new InvalidDataException(name); var tables = ParseTableDirectory(bytes); return new FontInfo { Name = name, Source = source, Bytes = bytes.Length, Sha256 = Convert.ToHexString(SHA256.HashData(bytes)), Tables = tables, Outline = tables.Any(t => t == "CFF " || t == "CFF2") ? "CFF" : tables.Contains("glyf") ? "glyf" : "unknown", Notes = "OpenFontReader parsed the font; the reachable SFNT table directory is recorded for availability only. Actual rendering paths are reported per sample." }; }
     static string[] ParseTableDirectory(byte[] bytes) { if (bytes.Length < 12) throw new InvalidDataException("truncated SFNT"); int count = (bytes[4] << 8) | bytes[5]; if (12 + count * 16 > bytes.Length) throw new InvalidDataException("truncated SFNT directory"); var names = new string[count]; for (int i = 0; i < count; i++) names[i] = System.Text.Encoding.ASCII.GetString(bytes, 12 + i * 16, 4); return names.OrderBy(x => x, StringComparer.Ordinal).ToArray(); }
