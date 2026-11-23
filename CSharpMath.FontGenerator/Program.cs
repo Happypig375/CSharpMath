@@ -118,25 +118,30 @@ internal static class Program {
     var temporary = Directory.CreateTempSubdirectory("csmf-verify-");
     try {
       Generate(sourceDirectory, temporary.FullName, null);
-      var expected = Directory.GetFiles(temporary.FullName, "*", SearchOption.AllDirectories).Select(p => Path.GetRelativePath(temporary.FullName, p)).OrderBy(p => p, StringComparer.Ordinal).ToArray();
-      var actual = Directory.GetFiles(outputDirectory, "*", SearchOption.AllDirectories).Select(p => Path.GetRelativePath(outputDirectory, p)).OrderBy(p => p, StringComparer.Ordinal).ToArray();
-      if (!expected.SequenceEqual(actual, StringComparer.Ordinal)) throw new InvalidDataException("Generated font artifact set differs from deterministic output.");
-      foreach (var relative in expected) {
-        var a = File.ReadAllBytes(Path.Combine(outputDirectory, relative));
-        var b = File.ReadAllBytes(Path.Combine(temporary.FullName, relative));
-        if (!a.AsSpan().SequenceEqual(b)) throw new InvalidDataException("Generated font artifact differs: " + relative);
-      }
-      var rendererPrototype = Path.Combine(temporary.FullName, "renderer-csharp");
-      WritePrototype(sourceDirectory, rendererPrototype, Bundled.OrderBy(x => x, StringComparer.Ordinal).Select(x => new ManifestEntry(x, Path.ChangeExtension(x, ".csmfont"), "", 0, 0)).ToArray());
+      VerifyDirectory(temporary.FullName, outputDirectory);
       if (prototypeDirectory != null) {
-        var expectedFiles = Directory.GetFiles(rendererPrototype).Select(Path.GetFileName).OrderBy(x => x, StringComparer.Ordinal).ToArray();
-        var actualFiles = Directory.GetFiles(prototypeDirectory).Select(Path.GetFileName).OrderBy(x => x, StringComparer.Ordinal).ToArray();
-        if (!expectedFiles.SequenceEqual(actualFiles, StringComparer.Ordinal)) throw new InvalidDataException("Generated renderer-record artifact set differs.");
-        foreach (var file in expectedFiles) if (!File.ReadAllBytes(Path.Combine(rendererPrototype, file!)).AsSpan().SequenceEqual(File.ReadAllBytes(Path.Combine(prototypeDirectory, file!)))) throw new InvalidDataException("Generated renderer-record artifact differs: " + file);
+        var prototype = Path.Combine(temporary.FullName, "renderer-csharp");
+        WritePrototype(sourceDirectory, prototype, Bundled.OrderBy(x => x, StringComparer.Ordinal)
+          .Select(x => new ManifestEntry(x, Path.ChangeExtension(x, ".csmfont"), "", 0, 0)).ToArray());
+        VerifyDirectory(prototype, prototypeDirectory);
       }
       Console.WriteLine("CSMF1 artifacts verified against source SHA-256.");
       return 0;
     } finally { temporary.Delete(true); }
+  }
+
+  private static void VerifyDirectory(string expectedRoot, string actualRoot) {
+    static string[] Files(string root) => Directory.GetFiles(root, "*", SearchOption.AllDirectories)
+      .Select(path => Path.GetRelativePath(root, path)).OrderBy(path => path, StringComparer.Ordinal).ToArray();
+    var expected = Files(expectedRoot);
+    if (!expected.SequenceEqual(Files(actualRoot), StringComparer.Ordinal))
+      throw new InvalidDataException("Generated font artifact set differs in " + actualRoot);
+    foreach (var relative in expected) {
+      var generated = File.ReadAllBytes(Path.Combine(expectedRoot, relative));
+      var checkedIn = File.ReadAllBytes(Path.Combine(actualRoot, relative));
+      if (!generated.AsSpan().SequenceEqual(checkedIn))
+        throw new InvalidDataException("Generated font artifact differs: " + relative);
+    }
   }
 
   private static void Generate(string sourceDirectory, string outputDirectory, string? prototypeDirectory) {

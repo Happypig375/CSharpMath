@@ -36,6 +36,7 @@ jobs:
         dotnet run --project CSharpMath.FontGenerator/CSharpMath.FontGenerator.csproj
         --configuration Release --no-restore --
         verify "CSharpMath.Rendering/Reference Fonts" "CSharpMath.Rendering/Generated Fonts"
+        "CSharpMath.FontGenerator.Tests/Generated"
     - name: Regenerate artifacts
       run: >-
         dotnet run --project CSharpMath.FontGenerator/CSharpMath.FontGenerator.csproj

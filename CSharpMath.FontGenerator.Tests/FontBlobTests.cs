@@ -29,6 +29,21 @@ public sealed class FontBlobTests {
   }
 
   [Fact]
+  public void VerifyChecksCompletePrototypeTreeAndContents() {
+    using var copy = new TempDirectory();
+    foreach (var file in Directory.GetFiles(Path.Combine(Root, "CSharpMath.FontGenerator.Tests", "Generated")))
+      File.Copy(file, Path.Combine(copy.Path, Path.GetFileName(file)));
+    var args = new[] { "verify", Sources, Generated, copy.Path };
+    Assert.Equal(0, Program.Main(args));
+    var extra = Path.Combine(Directory.CreateDirectory(Path.Combine(copy.Path, "old")).FullName, "extra.csmrecord");
+    File.WriteAllText(extra, "obsolete");
+    Assert.Throws<InvalidDataException>(() => Program.Main(args));
+    File.Delete(extra);
+    File.AppendAllText(Path.Combine(copy.Path, "latinmodern-math.csmrecord"), "changed");
+    Assert.Throws<InvalidDataException>(() => Program.Main(args));
+  }
+
+  [Fact]
   public void HeaderFailuresAreRejected() {
     var source = Path.Combine(Sources, "latinmodern-math.otf");
     var original = File.ReadAllBytes(Path.Combine(Generated, "latinmodern-math.csmfont"));
