@@ -37,7 +37,7 @@ namespace CSharpMath.Atom.Atoms {
       QuotientText = (n / d).ToString(CultureInfo.InvariantCulture); Remainder = (n % d).ToString(CultureInfo.InvariantCulture); Steps = BuildSteps(d);
     }
     static string Validate(string value, string name) { if (string.IsNullOrWhiteSpace(value) || value.Length > MaxDigits || value.Any(c => c < '0' || c > '9')) throw new ArgumentException("Expected a nonnegative decimal integer of at most 28 digits.", name); var t = value.TrimStart('0'); return t.Length == 0 ? "0" : t; }
-    MathList Digits(string text) => new MathList(new Number(text));
+    MathList Digits(string text) => new MathList(new Number(text) { FontStyle = this.FontStyle });
     IReadOnlyList<LongDivisionStep> BuildSteps(BigInteger divisor) {
       var result = new List<LongDivisionStep>(); var partial = BigInteger.Zero;
       for (int i = 0; i < Numerator.Length; i++) { partial = partial * 10 + (Numerator[i] - '0'); var q = (int)(partial / divisor); var product = q * divisor; partial -= product; result.Add(new LongDivisionStep((partial + product).ToString(CultureInfo.InvariantCulture), q, product.ToString(CultureInfo.InvariantCulture), partial.ToString(CultureInfo.InvariantCulture), Numerator[i], i)); }

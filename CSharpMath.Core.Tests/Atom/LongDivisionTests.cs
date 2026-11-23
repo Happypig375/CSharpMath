@@ -99,6 +99,27 @@ namespace CSharpMath.Core.AtomTests {
     }
 
     [Fact]
+    public void StyledDivisionRendersStyledDigits() {
+      var (display, error) = BackEnd.TestTypesettingContext.CreateDisplay(@"\mathbf{\longdiv{81}{3}}");
+      Assert.Null(error);
+      var glyphs = string.Concat(TextRuns(display));
+
+      Assert.Contains("𝟐𝟕", glyphs);
+      Assert.Contains("𝟐𝟏", glyphs);
+      Assert.Contains("𝟑", glyphs);
+      Assert.DoesNotContain(glyphs, c => c >= '0' && c <= '9');
+
+      static System.Collections.Generic.IEnumerable<string> TextRuns(Display.IDisplay<BackEnd.TestFont, System.Text.Rune> node) {
+        if (node is Display.Displays.TextLineDisplay<BackEnd.TestFont, System.Text.Rune> text)
+          yield return string.Concat(text.Text);
+        if (node is Display.Displays.ListDisplay<BackEnd.TestFont, System.Text.Rune> list)
+          foreach (var child in list.Displays)
+            foreach (var run in TextRuns(child))
+              yield return run;
+      }
+    }
+
+    [Fact]
     public void LayoutHasBracketRuleAndOneFinalRemainder() {
       var atom = new LongDivision("12345", "13");
       var layout = (Table)typeof(LongDivision).GetMethod("CreateLayout", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(atom, null)!;
