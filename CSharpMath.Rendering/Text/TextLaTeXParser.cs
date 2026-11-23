@@ -497,14 +497,11 @@ BreakText(@"Here are some text $1 + 12 \frac23 \sqrt4$ $$Display$$ text")
           if (change.Posture == Atom.FontPosture.Slanted || change.Capitals == Atom.FontCapitals.SmallCapitals)
             throw new InvalidOperationException("Slanted and small-capitals serialization is deferred to #300.");
           var wrappers = new System.Collections.Generic.List<string>();
-          // The text parser represents \textnormal as an explicit Roman,
-          // regular, upright, normal reset. Emit its canonical single command,
-          // rather than nesting three equivalent reset commands.
           if (change.Family == Atom.FontFamily.Roman
               && change.Weight == Atom.FontWeight.Regular
               && change.Posture == Atom.FontPosture.Upright
               && change.Capitals == Atom.FontCapitals.Normal) {
-            b.Append(@"\textrm{");
+            b.Append(@"\textnormal{");
             TextAtomToLaTeX(t.Content, b);
             return b.Append('}');
           }

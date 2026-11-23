@@ -117,6 +117,14 @@ namespace CSharpMath.Rendering.Text.Tests {
       }), atom);
       Assert.Equal(input, TextLaTeXParser.TextAtomToLaTeX(atom).ToString());
     }
+    [Theory]
+    [InlineData(@"\textbf{\textnormal{x}}")]
+    [InlineData(@"\textit{\textnormal{x}}")]
+    public void NormalResetSurvivesNestedRoundTrip(string source) {
+      var atom = Parse(source);
+      Assert.Equal(atom, Parse(TextLaTeXParser.TextAtomToLaTeX(atom).ToString()));
+    }
+
     [Fact]
     public void StyleDefault() {
       var input = @"\textnormal abc";
@@ -126,7 +134,7 @@ namespace CSharpMath.Rendering.Text.Tests {
           Atom.FontFamily.Roman, Atom.FontWeight.Regular, Atom.FontPosture.Upright, Atom.FontCapitals.Normal)),
         new TextAtom.Text("bc"),
       }), atom);
-      Assert.Equal(@"\textrm{a}bc", TextLaTeXParser.TextAtomToLaTeX(atom).ToString());
+      Assert.Equal(@"\textnormal{a}bc", TextLaTeXParser.TextAtomToLaTeX(atom).ToString());
     }
     [Fact]
     public void NestedStylesComposeOnlyTheirOwnAxes() {
